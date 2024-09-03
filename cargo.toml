@@ -1,0 +1,19 @@
+[package]
+name = "rysyn_core"
+version = "0.1.0"
+edition = "2021"
+description = "A simple rust library for HydroRoll."
+license = "MIT"
+documentation = "https://docs.hydroroll.team/"
+homepage = "https://hydroroll.team/"
+repository = "https://github.com/HydroRoll-Team/HydroRoll"
+authors = ["HsiangNianian <i@jyunko.cn>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "rysyn_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+printpdf = "0.7.0"
+pyo3 = { version = "0.19.2", features = ["abi3-py39"] }

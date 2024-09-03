@@ -1,0 +1,8 @@
+{
+    "Codegeex.Comment.LanguagePreference": "English",
+    "Codegeex.CompletionModel": "CodeGeeX Lite",
+    "Codegeex.CommitMessageStyle": "ConventionalCommits",
+    "Codegeex.RepoIndex": true,
+    "Codegeex.Chat.LanguagePreference": "English",
+    "Codegeex.SidebarUI.LanguagePreference": "English"
+}
