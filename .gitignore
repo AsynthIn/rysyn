@@ -21,3 +21,4 @@ Cargo.lock
 #.idea/
 .python-version
 .pdm-python
+__pycache__/
