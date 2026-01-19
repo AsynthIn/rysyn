@@ -2,7 +2,7 @@
 
 use std::sync::Mutex;
 use rysyn_audio_engine::AudioEngine;
-use rysyn_project::{Track, AudioItem};
+use rysyn_project::{Track, AudioItem, Pattern, NoteEvent, PatternInstance, InstrumentType};
 
 struct AppState {
     audio_engine: Mutex<AudioEngine>,
@@ -99,6 +99,80 @@ fn get_transport_pos(state: tauri::State<AppState>) -> Result<f64, String> {
 }
 
 
+#[tauri::command]
+fn create_pattern(state: tauri::State<AppState>, name: String, length: f64) -> Result<u32, String> {
+    let engine = state.audio_engine.lock().unwrap();
+    let project_mutex = engine.get_project();
+    let mut project = project_mutex.lock().unwrap();
+    
+    let id = (project.patterns.len() as u32) + 1;
+    let pattern = Pattern {
+        id,
+        name,
+        length,
+        notes: Vec::new(),
+    };
+    project.patterns.push(pattern);
+    Ok(id)
+}
+
+#[tauri::command]
+fn add_note(state: tauri::State<AppState>, pattern_id: u32, start: f64, duration: f64, key: u8, val: u8) -> Result<(), String> {
+    let engine = state.audio_engine.lock().unwrap();
+    let project_mutex = engine.get_project();
+    let mut project = project_mutex.lock().unwrap();
+    
+    if let Some(p) = project.patterns.iter_mut().find(|p| p.id == pattern_id) {
+        p.notes.push(NoteEvent {
+            start_time: start,
+            duration,
+            key,
+            velocity: val
+        });
+        Ok(())
+    } else {
+        Err("Pattern not found".to_string())
+    }
+}
+
+#[tauri::command]
+fn place_pattern(state: tauri::State<AppState>, track_id: u32, pattern_id: u32, start_time: f64) -> Result<(), String> {
+    let engine = state.audio_engine.lock().unwrap();
+    let project_mutex = engine.get_project();
+    let mut project = project_mutex.lock().unwrap();
+    
+    if let Some(t) = project.tracks.iter_mut().find(|t| t.id == track_id) {
+        let inst_id = (t.pattern_instances.len() as u32) + 1;
+        t.pattern_instances.push(PatternInstance {
+           id: inst_id,
+           pattern_id,
+           start_time 
+        });
+        Ok(())
+    } else {
+        Err("Track not found".to_string())
+    }
+}
+
+#[tauri::command]
+fn set_track_instrument(state: tauri::State<AppState>, track_id: u32, inst_type: String) -> Result<(), String> {
+    let engine = state.audio_engine.lock().unwrap();
+    let project_mutex = engine.get_project();
+    let mut project = project_mutex.lock().unwrap();
+    
+    let t_type = match inst_type.as_str() {
+        "SimpleSine" => InstrumentType::SimpleSine,
+        _ => InstrumentType::None,
+    };
+
+    if let Some(t) = project.tracks.iter_mut().find(|t| t.id == track_id) {
+        t.instrument = t_type;
+        Ok(())
+    } else {
+        Err("Track not found".to_string())
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(AppState {
@@ -112,7 +186,11 @@ fn main() {
             add_track, 
             import_audio,
             get_tracks,
-            get_transport_pos
+            get_transport_pos,
+            create_pattern,
+            add_note,
+            place_pattern,
+            set_track_instrument
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

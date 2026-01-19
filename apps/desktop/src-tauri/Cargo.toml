@@ -10,3 +10,6 @@ serde_json = "1"
 rysyn_audio_engine = { path = "../../../crates/audio_engine" }
 rysyn_project = { path = "../../../crates/project" }
 
+[build-dependencies]
+tauri-build = { version = "2.5.3", features = [] }
+

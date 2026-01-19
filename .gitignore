@@ -22,3 +22,7 @@ Cargo.lock
 .python-version
 .pdm-python
 __pycache__/
+
+# nodejs
+node_modules/
+dist/

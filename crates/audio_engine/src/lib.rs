@@ -1,7 +1,8 @@
 pub mod io;
+pub mod synth;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use rysyn_project::Project;
+use rysyn_project::{Project, InstrumentType};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -77,6 +78,8 @@ where
 
     let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
 
+    let mut synth_state = synth::GlobalSynthState::new();
+
     let stream = device.build_output_stream(
         config,
         move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
@@ -108,6 +111,26 @@ where
                         // Simple pan law (-1.0 to 1.0)
                         let l_gain = vol * (if pan > 0.0 { 1.0 - pan } else { 1.0 });
                         let r_gain = vol * (if pan < 0.0 { 1.0 + pan } else { 1.0 });
+
+                        // Basic Synth Implementation
+                        if track.instrument == InstrumentType::SimpleSine {
+                            if let Some(freq) = synth::render_track_synth(
+                                track.id,
+                                project_guard.bpm,
+                                current_pos,
+                                &track.pattern_instances,
+                                &project_guard.patterns
+                            ) {
+                                let mut phase = synth_state.get_phase(track.id);
+                                let s = (phase * 2.0 * std::f32::consts::PI).sin();
+                                mixed_sample_l += s * l_gain;
+                                mixed_sample_r += s * r_gain;
+                                
+                                phase += freq / sample_rate;
+                                if phase > 1.0 { phase -= 1.0; }
+                                synth_state.set_phase(track.id, phase);
+                            }
+                        }
 
                         for item in &track.items {
                             // Check overlap

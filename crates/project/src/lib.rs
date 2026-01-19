@@ -1,5 +1,12 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum InstrumentType {
+    None,
+    SimpleSine,
+}
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Project {
     pub name: String,
@@ -7,6 +14,7 @@ pub struct Project {
     pub is_playing: bool,
     pub playhead_pos: f64, // seconds
     pub tracks: Vec<Track>,
+    pub patterns: Vec<Pattern>,
 }
 
 impl Default for Project {
@@ -17,6 +25,7 @@ impl Default for Project {
             is_playing: false,
             playhead_pos: 0.0,
             tracks: Vec::new(),
+            patterns: Vec::new(),
         }
     }
 }
@@ -30,6 +39,8 @@ pub struct Track {
     pub mute: bool,
     pub solo: bool,
     pub items: Vec<AudioItem>,
+    pub pattern_instances: Vec<PatternInstance>,
+    pub instrument: InstrumentType,
 }
 
 impl Track {
@@ -42,6 +53,8 @@ impl Track {
             mute: false,
             solo: false,
             items: Vec::new(),
+            pattern_instances: Vec::new(),
+            instrument: InstrumentType::None,
         }
     }
 }
@@ -53,4 +66,27 @@ pub struct AudioItem {
     pub duration: f64,   // Seconds
     pub source_path: String,
     pub start_offset: f64, // Start point in source file (seconds)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Pattern {
+    pub id: u32,
+    pub name: String,
+    pub length: f64, // beats (e.g., 4.0 for 1 bar)
+    pub notes: Vec<NoteEvent>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NoteEvent {
+    pub start_time: f64, // beats (relative to pattern start)
+    pub duration: f64,   // beats
+    pub key: u8,         // MIDI note number (0-127)
+    pub velocity: u8,    // 0-127
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PatternInstance {
+    pub id: u32,
+    pub pattern_id: u32,
+    pub start_time: f64, // seconds (on main timeline)
 }
