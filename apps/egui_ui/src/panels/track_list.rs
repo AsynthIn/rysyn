@@ -75,7 +75,8 @@ impl TrackListPanel {
         ui.painter().rect_stroke(
             rect,
             4.0,
-            Stroke::new(1.0, Color32::from_rgb(60, 60, 65))
+            Stroke::new(1.0, Color32::from_rgb(60, 60, 65)),
+            egui::StrokeKind::Outside
         );
         
         // Track color indicator

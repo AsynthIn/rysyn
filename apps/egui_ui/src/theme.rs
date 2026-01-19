@@ -2,22 +2,14 @@
 //!
 //! Custom fonts and dark theme for professional DAW look
 
-use eframe::egui::{self, Color32, FontData, FontDefinitions, FontFamily, Rounding, Style, Visuals};
+use eframe::egui::{self, Color32, FontDefinitions, Style, Visuals, CornerRadius};
 
 /// Setup custom fonts for the DAW
 pub fn setup_custom_fonts(ctx: &egui::Context) {
-    let mut fonts = FontDefinitions::default();
+    let fonts = FontDefinitions::default();
     
     // You can add custom fonts here if needed
     // For now, we'll use the default fonts with adjusted sizes
-    
-    // Example of how to add a custom font:
-    // fonts.font_data.insert(
-    //     "inter".to_owned(),
-    //     FontData::from_static(include_bytes!("../assets/fonts/Inter-Regular.ttf")),
-    // );
-    // fonts.families.get_mut(&FontFamily::Proportional).unwrap()
-    //     .insert(0, "inter".to_owned());
     
     ctx.set_fonts(fonts);
 }
@@ -40,7 +32,6 @@ pub fn setup_dark_theme(ctx: &egui::Context) {
     // Text colors
     let text_primary = Color32::from_rgb(230, 230, 230);
     let text_secondary = Color32::from_rgb(160, 160, 160);
-    let text_disabled = Color32::from_rgb(100, 100, 100);
     
     // Configure visuals
     let visuals = Visuals {
@@ -55,7 +46,7 @@ pub fn setup_dark_theme(ctx: &egui::Context) {
                 bg_fill: bg_medium,
                 weak_bg_fill: bg_medium,
                 bg_stroke: egui::Stroke::new(1.0, Color32::from_rgb(60, 60, 65)),
-                rounding: Rounding::same(4.0),
+                corner_radius: CornerRadius::same(4),
                 fg_stroke: egui::Stroke::new(1.0, text_secondary),
                 expansion: 0.0,
             },
@@ -63,7 +54,7 @@ pub fn setup_dark_theme(ctx: &egui::Context) {
                 bg_fill: bg_widget,
                 weak_bg_fill: bg_widget,
                 bg_stroke: egui::Stroke::new(1.0, Color32::from_rgb(70, 70, 75)),
-                rounding: Rounding::same(4.0),
+                corner_radius: CornerRadius::same(4),
                 fg_stroke: egui::Stroke::new(1.0, text_primary),
                 expansion: 0.0,
             },
@@ -71,7 +62,7 @@ pub fn setup_dark_theme(ctx: &egui::Context) {
                 bg_fill: Color32::from_rgb(65, 65, 70),
                 weak_bg_fill: Color32::from_rgb(65, 65, 70),
                 bg_stroke: egui::Stroke::new(1.0, accent_hover),
-                rounding: Rounding::same(4.0),
+                corner_radius: CornerRadius::same(4),
                 fg_stroke: egui::Stroke::new(1.0, text_primary),
                 expansion: 1.0,
             },
@@ -79,7 +70,7 @@ pub fn setup_dark_theme(ctx: &egui::Context) {
                 bg_fill: accent_active,
                 weak_bg_fill: accent_active,
                 bg_stroke: egui::Stroke::new(1.0, accent),
-                rounding: Rounding::same(4.0),
+                corner_radius: CornerRadius::same(4),
                 fg_stroke: egui::Stroke::new(2.0, text_primary),
                 expansion: 1.0,
             },
@@ -87,7 +78,7 @@ pub fn setup_dark_theme(ctx: &egui::Context) {
                 bg_fill: bg_light,
                 weak_bg_fill: bg_light,
                 bg_stroke: egui::Stroke::new(1.0, Color32::from_rgb(80, 80, 85)),
-                rounding: Rounding::same(4.0),
+                corner_radius: CornerRadius::same(4),
                 fg_stroke: egui::Stroke::new(1.0, text_primary),
                 expansion: 0.0,
             },
@@ -112,11 +103,11 @@ pub fn setup_dark_theme(ctx: &egui::Context) {
         error_fg_color: Color32::from_rgb(255, 80, 80),
         
         // Window
-        window_rounding: Rounding::same(6.0),
+        window_corner_radius: CornerRadius::same(6),
         window_shadow: egui::epaint::Shadow {
             offset: [0, 4].into(),
-            blur: 8.0,
-            spread: 0.0,
+            blur: 8,
+            spread: 0,
             color: Color32::from_black_alpha(80),
         },
         window_fill: bg_medium,
@@ -124,7 +115,7 @@ pub fn setup_dark_theme(ctx: &egui::Context) {
         window_highlight_topmost: true,
         
         // Menu
-        menu_rounding: Rounding::same(4.0),
+        menu_corner_radius: CornerRadius::same(4),
         
         // Panel
         panel_fill: bg_dark,
@@ -132,8 +123,8 @@ pub fn setup_dark_theme(ctx: &egui::Context) {
         // Popup shadow
         popup_shadow: egui::epaint::Shadow {
             offset: [0, 2].into(),
-            blur: 6.0,
-            spread: 0.0,
+            blur: 6,
+            spread: 0,
             color: Color32::from_black_alpha(60),
         },
         
@@ -184,7 +175,7 @@ pub fn setup_dark_theme(ctx: &egui::Context) {
     
     // Spacing
     style.spacing.item_spacing = egui::vec2(8.0, 4.0);
-    style.spacing.window_margin = egui::Margin::same(8.0);
+    style.spacing.window_margin = egui::Margin::same(8);
     style.spacing.button_padding = egui::vec2(8.0, 4.0);
     style.spacing.indent = 18.0;
     style.spacing.slider_width = 100.0;

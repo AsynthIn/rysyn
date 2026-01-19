@@ -2,6 +2,7 @@
 
 use eframe::egui;
 use rysyn_ffi_bridge::{init_bridge, get_bridge, Command, StateSnapshot};
+use std::sync::mpsc::{channel, Sender, Receiver};
 
 use crate::panels::{
     transport::TransportPanel,
@@ -16,6 +17,10 @@ use crate::panels::{
 pub struct RysynApp {
     /// Current state from audio core
     state: StateSnapshot,
+    
+    /// Command sender for UI -> Audio Core
+    cmd_tx: Sender<Command>,
+    cmd_rx: Receiver<Command>,
     
     /// Panel states
     transport: TransportPanel,
@@ -40,8 +45,12 @@ impl RysynApp {
         // Initialize FFI bridge
         init_bridge();
         
+        let (cmd_tx, cmd_rx) = channel();
+        
         Self {
             state: StateSnapshot::new(),
+            cmd_tx,
+            cmd_rx,
             transport: TransportPanel::default(),
             timeline: TimelinePanel::default(),
             track_list: TrackListPanel::default(),
@@ -56,9 +65,11 @@ impl RysynApp {
         }
     }
     
-    fn send_command(&self, cmd: Command) {
+    fn process_commands(&self) {
         if let Some(bridge) = get_bridge() {
-            let _ = bridge.send_command(cmd);
+            while let Ok(cmd) = self.cmd_rx.try_recv() {
+                let _ = bridge.send_command(cmd);
+            }
         }
     }
     
@@ -74,15 +85,22 @@ impl eframe::App for RysynApp {
         // Refresh state from audio core
         self.refresh_state();
         
+        // Process any pending commands
+        self.process_commands();
+        
         // Request continuous repaint for smooth animation
         ctx.request_repaint();
         
+        // Clone cmd_tx for use in closures
+        let cmd_tx = self.cmd_tx.clone();
+        
         // === Menu Bar ===
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
+            let cmd_tx = cmd_tx.clone();
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("New Project").clicked() {
-                        self.send_command(Command::NewProject);
+                        let _ = cmd_tx.send(Command::NewProject);
                         ui.close_menu();
                     }
                     if ui.button("Open Project...").clicked() {
@@ -90,7 +108,7 @@ impl eframe::App for RysynApp {
                         ui.close_menu();
                     }
                     if ui.button("Save Project").clicked() {
-                        self.send_command(Command::SaveProject { path: None });
+                        let _ = cmd_tx.send(Command::SaveProject { path: None });
                         ui.close_menu();
                     }
                     ui.separator();
@@ -101,32 +119,32 @@ impl eframe::App for RysynApp {
                 
                 ui.menu_button("Edit", |ui| {
                     if ui.button("Undo").clicked() {
-                        self.send_command(Command::Undo);
+                        let _ = cmd_tx.send(Command::Undo);
                         ui.close_menu();
                     }
                     if ui.button("Redo").clicked() {
-                        self.send_command(Command::Redo);
+                        let _ = cmd_tx.send(Command::Redo);
                         ui.close_menu();
                     }
                 });
                 
                 ui.menu_button("Track", |ui| {
                     if ui.button("Add Audio Track").clicked() {
-                        self.send_command(Command::CreateTrack { 
+                        let _ = cmd_tx.send(Command::CreateTrack { 
                             name: "Audio".to_string(),
                             is_midi: false 
                         });
                         ui.close_menu();
                     }
                     if ui.button("Add MIDI Track").clicked() {
-                        self.send_command(Command::CreateTrack { 
+                        let _ = cmd_tx.send(Command::CreateTrack { 
                             name: "MIDI".to_string(),
                             is_midi: true 
                         });
                         ui.close_menu();
                     }
                     if ui.button("Add Instrument Track").clicked() {
-                        self.send_command(Command::CreateTrack { 
+                        let _ = cmd_tx.send(Command::CreateTrack { 
                             name: "Instrument".to_string(),
                             is_midi: true 
                         });
@@ -159,58 +177,67 @@ impl eframe::App for RysynApp {
             });
         });
         
+        // Clone state for panels (to avoid borrow issues)
+        let state = self.state.clone();
+        
         // === Transport Bar ===
+        let cmd_tx2 = cmd_tx.clone();
         egui::TopBottomPanel::top("transport_bar")
             .min_height(60.0)
             .show(ctx, |ui| {
-                self.transport.show(ui, &self.state, |cmd| self.send_command(cmd));
+                self.transport.show(ui, &state, |cmd| { let _ = cmd_tx2.send(cmd); });
             });
         
         // === Bottom Panel (Mixer) ===
         if self.show_mixer {
+            let cmd_tx2 = cmd_tx.clone();
             egui::TopBottomPanel::bottom("mixer_panel")
                 .resizable(true)
                 .default_height(200.0)
                 .min_height(100.0)
                 .show(ctx, |ui| {
-                    self.mixer.show(ui, &self.state, |cmd| self.send_command(cmd));
+                    self.mixer.show(ui, &state, |cmd| { let _ = cmd_tx2.send(cmd); });
                 });
         }
         
         // === Left Panel (Browser) ===
         if self.show_browser {
+            let cmd_tx2 = cmd_tx.clone();
             egui::SidePanel::left("browser_panel")
                 .resizable(true)
                 .default_width(200.0)
                 .min_width(150.0)
                 .show(ctx, |ui| {
-                    self.browser.show(ui, &self.state, |cmd| self.send_command(cmd));
+                    self.browser.show(ui, &state, |cmd| { let _ = cmd_tx2.send(cmd); });
                 });
         }
         
         // === Right Panel (Inspector) ===
         if self.show_inspector {
+            let cmd_tx2 = cmd_tx.clone();
             egui::SidePanel::right("inspector_panel")
                 .resizable(true)
                 .default_width(250.0)
                 .min_width(200.0)
                 .show(ctx, |ui| {
-                    self.inspector.show(ui, &self.state, |cmd| self.send_command(cmd));
+                    self.inspector.show(ui, &state, |cmd| { let _ = cmd_tx2.send(cmd); });
                 });
         }
         
         // === Central Area (Track List + Timeline) ===
+        let cmd_tx2 = cmd_tx.clone();
+        let cmd_tx3 = cmd_tx.clone();
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
                 // Track list (left side, fixed width)
-                egui::Frame::none()
+                egui::Frame::new()
                     .fill(ui.visuals().extreme_bg_color)
                     .show(ui, |ui| {
                         ui.set_width(200.0);
                         self.track_list.show(
                             ui, 
-                            &self.state, 
-                            |cmd| self.send_command(cmd)
+                            &state, 
+                            |cmd| { let _ = cmd_tx2.send(cmd); }
                         );
                     });
                 
@@ -218,8 +245,8 @@ impl eframe::App for RysynApp {
                 ui.with_layout(egui::Layout::left_to_right(egui::Align::Min).with_main_wrap(false), |ui| {
                     self.timeline.show(
                         ui, 
-                        &self.state, 
-                        |cmd| self.send_command(cmd),
+                        &state, 
+                        |cmd| { let _ = cmd_tx3.send(cmd); },
                         &mut self.timeline_zoom,
                         &mut self.timeline_scroll
                     );

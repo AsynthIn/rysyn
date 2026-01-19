@@ -282,7 +282,8 @@ impl TimelinePanel {
             painter.rect_stroke(
                 clip_rect.expand(2.0),
                 4.0,
-                Stroke::new(2.0, Color32::WHITE)
+                Stroke::new(2.0, Color32::WHITE),
+                egui::StrokeKind::Outside
             );
         }
         
@@ -293,7 +294,8 @@ impl TimelinePanel {
         painter.rect_stroke(
             clip_rect,
             4.0,
-            Stroke::new(1.0, color.linear_multiply(0.7))
+            Stroke::new(1.0, color.linear_multiply(0.7)),
+            egui::StrokeKind::Outside
         );
         
         // Clip name

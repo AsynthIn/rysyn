@@ -2,7 +2,7 @@
 //!
 //! Play/Pause/Stop, Record, Loop, BPM, Time Display
 
-use eframe::egui::{self, Color32, RichText, Sense, Vec2};
+use eframe::egui::{self, Color32, RichText, Vec2};
 use rysyn_ffi_bridge::{Command, StateSnapshot};
 
 #[derive(Default)]
@@ -91,18 +91,20 @@ impl TransportPanel {
             
             // Editable BPM field
             let bpm_text = self.bpm_edit.clone()
-                .unwrap_or_else(|| format!("{:.1}", state.transport.bpm));
+                .unwrap_or_else(|| format!("{:.1}", state.transport.tempo));
             
+            let mut edit_text = self.bpm_edit.get_or_insert(bpm_text).clone();
             let response = ui.add(
-                egui::TextEdit::singleline(&mut self.bpm_edit.get_or_insert(bpm_text))
+                egui::TextEdit::singleline(&mut edit_text)
                     .desired_width(60.0)
                     .font(egui::TextStyle::Monospace)
             );
+            self.bpm_edit = Some(edit_text);
             
             if response.lost_focus() {
                 if let Some(ref text) = self.bpm_edit {
                     if let Ok(new_bpm) = text.parse::<f64>() {
-                        send_cmd(Command::SetBpm { bpm: new_bpm });
+                        send_cmd(Command::SetTempo { bpm: new_bpm });
                     }
                 }
                 self.bpm_edit = None;
@@ -160,7 +162,7 @@ fn transport_button_colored(
     ).on_hover_text(tooltip)
 }
 
-fn format_position(beats: f64, beats_per_bar: u8) -> String {
+fn format_position(beats: f64, beats_per_bar: u32) -> String {
     let beats_per_bar = beats_per_bar.max(1) as f64;
     let bar = (beats / beats_per_bar) as i32 + 1;
     let beat_in_bar = (beats % beats_per_bar) + 1.0;

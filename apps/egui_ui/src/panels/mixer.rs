@@ -44,10 +44,10 @@ impl MixerPanel {
     ) {
         let available_height = ui.available_height();
         
-        egui::Frame::none()
+        egui::Frame::new()
             .fill(Color32::from_rgb(40, 40, 45))
             .stroke(Stroke::new(1.0, Color32::from_rgb(60, 60, 65)))
-            .rounding(4.0)
+            .corner_radius(4.0)
             .show(ui, |ui| {
                 ui.allocate_ui(Vec2::new(CHANNEL_WIDTH, available_height), |ui| {
                     ui.vertical(|ui| {
@@ -215,10 +215,10 @@ impl MixerPanel {
     ) {
         let available_height = ui.available_height();
         
-        egui::Frame::none()
+        egui::Frame::new()
             .fill(Color32::from_rgb(50, 45, 45))
             .stroke(Stroke::new(1.0, Color32::from_rgb(80, 70, 70)))
-            .rounding(4.0)
+            .corner_radius(4.0)
             .show(ui, |ui| {
                 ui.allocate_ui(Vec2::new(CHANNEL_WIDTH + 20.0, available_height), |ui| {
                     ui.vertical(|ui| {

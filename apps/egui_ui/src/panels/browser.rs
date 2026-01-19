@@ -2,7 +2,7 @@
 //!
 //! File browser for audio files and VST plugins
 
-use eframe::egui::{self, Color32, RichText, Sense, Vec2};
+use eframe::egui::{self, Color32, RichText};
 use rysyn_ffi_bridge::{Command, StateSnapshot};
 use std::path::PathBuf;
 

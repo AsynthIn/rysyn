@@ -9,7 +9,6 @@ path = "src/main.rs"
 
 [dependencies]
 rysyn_ffi_bridge = { path = "../../crates/ffi_bridge" }
-rysyn_project = { path = "../../crates/project" }
 
 eframe.workspace = true
 egui.workspace = true
@@ -19,6 +18,9 @@ serde.workspace = true
 serde_json.workspace = true
 log.workspace = true
 env_logger.workspace = true
+
+# For browser panel
+dirs = "5"
 
 # For audio file preview/waveform (optional)
 # hound = "3.5"

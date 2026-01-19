@@ -2,7 +2,7 @@
 //!
 //! Shows properties of selected items (tracks, clips, plugins)
 
-use eframe::egui::{self, Color32, RichText, Vec2};
+use eframe::egui::{self, Color32, RichText};
 use rysyn_ffi_bridge::{Command, StateSnapshot, TrackState, ClipState};
 
 #[derive(Default)]
@@ -243,7 +243,7 @@ impl InspectorPanel {
                     egui::DragValue::new(&mut length)
                         .speed(0.1)
                         .suffix(" beats")
-                        .clamp_range(0.1..=1000.0)
+                        .range(0.1..=1000.0)
                 ).changed() {
                     send_cmd(Command::ResizeClip {
                         clip_id: clip.id,
@@ -349,7 +349,7 @@ impl InspectorPanel {
                 if ui.add(
                     egui::DragValue::new(&mut bpm)
                         .speed(0.1)
-                        .clamp_range(20.0..=300.0)
+                        .range(20.0..=300.0)
                 ).changed() {
                     send_cmd(Command::SetTempo { bpm });
                 }
@@ -361,10 +361,10 @@ impl InspectorPanel {
                 ui.horizontal(|ui| {
                     if ui.add(
                         egui::DragValue::new(&mut num)
-                            .clamp_range(1..=16)
+                            .range(1..=16)
                     ).changed() || ui.add(
                         egui::DragValue::new(&mut denom)
-                            .clamp_range(1..=16)
+                            .range(1..=16)
                     ).changed() {
                         send_cmd(Command::SetTimeSignature {
                             numerator: num,

@@ -145,7 +145,7 @@ pub extern "C" fn rysyn_transport_stop() -> bool {
 #[no_mangle]
 pub extern "C" fn rysyn_transport_set_bpm(bpm: f64) -> bool {
     get_bridge()
-        .map(|b| b.send_command(Command::SetBpm { bpm }).is_ok())
+        .map(|b| b.send_command(Command::SetTempo { bpm }).is_ok())
         .unwrap_or(false)
 }
 
@@ -168,7 +168,7 @@ pub extern "C" fn rysyn_get_playhead_beats() -> f64 {
 #[no_mangle]
 pub extern "C" fn rysyn_get_bpm() -> f64 {
     get_bridge()
-        .map(|b| b.get_state().transport.bpm)
+        .map(|b| b.get_state().transport.tempo)
         .unwrap_or(120.0)
 }
 
