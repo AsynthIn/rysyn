@@ -90,9 +90,7 @@ impl eframe::App for RysynApp {
                         ui.close_menu();
                     }
                     if ui.button("Save Project").clicked() {
-                        self.send_command(Command::SaveProject { 
-                            path: "project.rysyn".to_string() 
-                        });
+                        self.send_command(Command::SaveProject { path: None });
                         ui.close_menu();
                     }
                     ui.separator();
@@ -114,20 +112,23 @@ impl eframe::App for RysynApp {
                 
                 ui.menu_button("Track", |ui| {
                     if ui.button("Add Audio Track").clicked() {
-                        self.send_command(Command::AddTrack { 
-                            track_type: rysyn_ffi_bridge::TrackType::Audio 
+                        self.send_command(Command::CreateTrack { 
+                            name: "Audio".to_string(),
+                            is_midi: false 
                         });
                         ui.close_menu();
                     }
                     if ui.button("Add MIDI Track").clicked() {
-                        self.send_command(Command::AddTrack { 
-                            track_type: rysyn_ffi_bridge::TrackType::Midi 
+                        self.send_command(Command::CreateTrack { 
+                            name: "MIDI".to_string(),
+                            is_midi: true 
                         });
                         ui.close_menu();
                     }
                     if ui.button("Add Instrument Track").clicked() {
-                        self.send_command(Command::AddTrack { 
-                            track_type: rysyn_ffi_bridge::TrackType::Instrument 
+                        self.send_command(Command::CreateTrack { 
+                            name: "Instrument".to_string(),
+                            is_midi: true 
                         });
                         ui.close_menu();
                     }
@@ -209,8 +210,7 @@ impl eframe::App for RysynApp {
                         self.track_list.show(
                             ui, 
                             &self.state, 
-                            |cmd| self.send_command(cmd),
-                            self.timeline_zoom
+                            |cmd| self.send_command(cmd)
                         );
                     });
                 
