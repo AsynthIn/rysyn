@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "apps/desktop/src-tauri",
+    "crates/*",
+]
+resolver = "2"

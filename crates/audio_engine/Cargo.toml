@@ -1,0 +1,10 @@
+[package]
+name = "rysyn_audio_engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rysyn_project = { path = "../project" }
+cpal = "0.17.1"
+symphonia = { version = "0.5.5", features = ["all-codecs", "all-formats"] }
+
