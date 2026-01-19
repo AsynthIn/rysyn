@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use std::f32::consts::PI;
-use rysyn_project::{Pattern, PatternInstance, NoteEvent};
+use rysyn_project::{Pattern, PatternInstance};
 
 pub struct GlobalSynthState {
     phases: HashMap<u32, f32>, // TrackId -> Phase
@@ -25,7 +24,7 @@ pub fn note_to_freq(note: u8) -> f32 {
 }
 
 pub fn render_track_synth(
-    track_id: u32,
+    _track_id: u32,
     bpm: f32,
     current_time: f64, // seconds
     instances: &[PatternInstance],

@@ -1,0 +1,7 @@
+[project]
+name = "rysyn"
+version = "0.1.0"
+description = "Rysyn: A Rust-based Synthesizer and DAW"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
