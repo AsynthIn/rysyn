@@ -4,6 +4,7 @@
 
 use eframe::egui::{self, Color32, Pos2, Rect, RichText, Sense, Stroke, Vec2};
 use rysyn_ffi_bridge::{Command, StateSnapshot, TrackState};
+use crate::theme::DawColors;
 
 const TRACK_HEIGHT: f32 = 80.0;
 
@@ -37,14 +38,14 @@ impl TrackListPanel {
         });
         
         ui.add_space(4.0);
-        ui.separator();
         
         // Track list
         egui::ScrollArea::vertical()
             .auto_shrink([false, false])
             .show(ui, |ui| {
-                for track in &state.tracks {
-                    self.draw_track_header(ui, track, &mut send_cmd);
+                ui.spacing_mut().item_spacing.y = 0.0; // Connect tracks seamlessly
+                for (i, track) in state.tracks.iter().enumerate() {
+                    self.draw_track_header(ui, track, i, &mut send_cmd);
                 }
             });
     }
@@ -53,6 +54,7 @@ impl TrackListPanel {
         &mut self,
         ui: &mut egui::Ui,
         track: &TrackState,
+        index: usize,
         send_cmd: &mut impl FnMut(Command),
     ) {
         let available_width = ui.available_width();
@@ -63,20 +65,24 @@ impl TrackListPanel {
         );
         
         // Background
-        let bg_color = if track.is_selected {
-            Color32::from_rgb(50, 60, 80)
+        let is_selected = track.is_selected;
+        let bg_color = if is_selected {
+            ui.visuals().selection.bg_fill.linear_multiply(0.3)
         } else {
-            Color32::from_rgb(40, 40, 45)
+            // Zebra striping
+            if index % 2 == 0 {
+                ui.visuals().faint_bg_color
+            } else {
+                ui.visuals().window_fill
+            }
         };
         
-        ui.painter().rect_filled(rect, 4.0, bg_color);
+        ui.painter().rect_filled(rect, 0.0, bg_color);
         
-        // Border
-        ui.painter().rect_stroke(
-            rect,
-            4.0,
-            Stroke::new(1.0, Color32::from_rgb(60, 60, 65)),
-            egui::StrokeKind::Outside
+        // Bottom Border
+        ui.painter().line_segment(
+            [rect.left_bottom(), rect.right_bottom()],
+            Stroke::new(1.0, ui.visuals().window_stroke().color)
         );
         
         // Track color indicator
@@ -91,18 +97,19 @@ impl TrackListPanel {
             rect.min,
             Vec2::new(4.0, TRACK_HEIGHT)
         );
-        ui.painter().rect_filled(color_bar, 4.0, color);
+        ui.painter().rect_filled(color_bar, 0.0, color);
         
         // Content area
         let content_rect = Rect::from_min_max(
-            Pos2::new(rect.min.x + 8.0, rect.min.y + 4.0),
+            Pos2::new(rect.min.x + 12.0, rect.min.y + 6.0),
             Pos2::new(rect.max.x - 4.0, rect.max.y - 4.0)
         );
         
         ui.allocate_ui_at_rect(content_rect, |ui| {
             ui.vertical(|ui| {
-                // Track name (editable)
+                // Top row: Name + Type
                 ui.horizontal(|ui| {
+                    ui.set_width(ui.available_width());
                     if self.renaming_track == Some(track.id) {
                         let edit = ui.text_edit_singleline(&mut self.rename_buffer);
                         if edit.lost_focus() || ui.input(|i| i.key_pressed(egui::Key::Enter)) {
@@ -116,7 +123,7 @@ impl TrackListPanel {
                         let name_response = ui.add(
                             egui::Label::new(
                                 RichText::new(&track.name)
-                                    .color(Color32::WHITE)
+                                    .color(ui.visuals().text_color())
                                     .strong()
                             ).sense(Sense::click())
                         );
@@ -127,140 +134,79 @@ impl TrackListPanel {
                         }
                     }
                     
-                    // Track type indicator
-                    let type_text = if track.is_midi { "MIDI" } else { "AUD" };
-                    ui.label(
-                        RichText::new(type_text)
-                            .size(9.0)
-                            .color(Color32::from_rgb(150, 150, 150))
-                    );
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                         // Track type indicator
+                        let type_text = if track.is_midi { "MIDI" } else { "AUD" };
+                        ui.label(
+                            RichText::new(type_text)
+                                .size(9.0)
+                                .color(ui.visuals().weak_text_color())
+                        );
+                    });
                 });
                 
                 ui.add_space(4.0);
                 
                 // Mute / Solo buttons
                 ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 2.0;
                     let mute_color = if track.is_muted {
-                        Color32::from_rgb(255, 80, 80)
+                        DawColors::METER_RED
                     } else {
-                        Color32::from_rgb(100, 100, 100)
+                        ui.visuals().weak_text_color()
                     };
                     
                     if ui.add(
-                        egui::Button::new(RichText::new("M").color(mute_color))
-                            .min_size(Vec2::new(24.0, 20.0))
+                        egui::Button::new(RichText::new("M").size(11.0).color(mute_color).strong())
+                            .min_size(Vec2::splat(20.0))
+                            .frame(true)
                     ).clicked() {
-                        send_cmd(Command::SetTrackMute { 
-                            track_id: track.id,
-                            muted: !track.is_muted
-                        });
+                        send_cmd(Command::SetTrackMute { track_id: track.id, muted: !track.is_muted });
                     }
                     
                     let solo_color = if track.is_soloed {
-                        Color32::from_rgb(255, 200, 50)
+                        DawColors::METER_YELLOW
                     } else {
-                        Color32::from_rgb(100, 100, 100)
+                        ui.visuals().weak_text_color()
                     };
                     
                     if ui.add(
-                        egui::Button::new(RichText::new("S").color(solo_color))
-                            .min_size(Vec2::new(24.0, 20.0))
+                        egui::Button::new(RichText::new("S").size(11.0).color(solo_color).strong())
+                            .min_size(Vec2::splat(20.0))
+                            .frame(true)
                     ).clicked() {
-                        send_cmd(Command::SetTrackSolo { 
-                            track_id: track.id,
-                            soloed: !track.is_soloed
-                        });
+                        send_cmd(Command::SetTrackSolo { track_id: track.id, soloed: !track.is_soloed });
                     }
                     
-                    // Record arm (MIDI tracks only)
                     if track.is_midi {
                         let rec_color = if track.is_armed {
-                            Color32::from_rgb(255, 50, 50)
+                            DawColors::RECORD
                         } else {
-                            Color32::from_rgb(100, 100, 100)
+                            ui.visuals().weak_text_color()
                         };
                         
                         if ui.add(
-                            egui::Button::new(RichText::new("R").color(rec_color))
-                                .min_size(Vec2::new(24.0, 20.0))
+                            egui::Button::new(RichText::new("R").size(11.0).color(rec_color).strong())
+                                .min_size(Vec2::splat(20.0))
+                                .frame(true)
                         ).clicked() {
-                            send_cmd(Command::SetTrackArm { 
-                                track_id: track.id,
-                                armed: !track.is_armed
-                            });
+                            send_cmd(Command::SetTrackArm { track_id: track.id, armed: !track.is_armed });
                         }
                     }
                 });
                 
-                // Volume slider
+                ui.add_space(4.0);
+                
+                // Volume/Pan (simplified for header)
                 ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new("Vol")
-                            .size(10.0)
-                            .color(Color32::from_rgb(150, 150, 150))
-                    );
-                    
+                    ui.label(RichText::new("Vol").size(9.0).color(ui.visuals().weak_text_color()));
                     let mut vol = track.volume;
-                    let vol_slider = ui.add(
+                    if ui.add(
                         egui::Slider::new(&mut vol, 0.0..=1.5)
                             .show_value(false)
-                            .custom_formatter(|v, _| format!("{:.1} dB", 20.0 * (v as f64).log10()))
-                    );
-                    
-                    if vol_slider.changed() {
-                        send_cmd(Command::SetTrackVolume {
-                            track_id: track.id,
-                            volume: vol
-                        });
-                    }
-                    
-                    // dB display
-                    let db = if track.volume > 0.0 {
-                        20.0 * (track.volume as f64).log10()
-                    } else {
-                        -60.0
+                    ).changed() {
+                        send_cmd(Command::SetTrackVolume { track_id: track.id, volume: vol });
                     };
-                    ui.label(
-                        RichText::new(format!("{:.1}", db))
-                            .size(10.0)
-                            .color(Color32::from_rgb(180, 180, 180))
-                    );
-                });
-                
-                // Pan knob (simplified as slider)
-                ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new("Pan")
-                            .size(10.0)
-                            .color(Color32::from_rgb(150, 150, 150))
-                    );
-                    
-                    let mut pan = track.pan;
-                    let pan_slider = ui.add(
-                        egui::Slider::new(&mut pan, -1.0..=1.0)
-                            .show_value(false)
-                    );
-                    
-                    if pan_slider.changed() {
-                        send_cmd(Command::SetTrackPan {
-                            track_id: track.id,
-                            pan
-                        });
-                    }
-                    
-                    // Pan display
-                    let pan_text = if track.pan.abs() < 0.01 {
-                        "C".to_string()
-                    } else if track.pan < 0.0 {
-                        format!("L{:.0}", track.pan.abs() * 100.0)
-                    } else {
-                        format!("R{:.0}", track.pan * 100.0)
-                    };
-                    ui.label(
-                        RichText::new(pan_text)
-                            .size(10.0)
-                            .color(Color32::from_rgb(180, 180, 180))
-                    );
                 });
             });
         });

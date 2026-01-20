@@ -4,6 +4,7 @@
 
 use eframe::egui::{self, Color32, RichText, Vec2};
 use rysyn_ffi_bridge::{Command, StateSnapshot};
+use crate::theme::DawColors;
 
 #[derive(Default)]
 pub struct TransportPanel {
@@ -18,7 +19,7 @@ impl TransportPanel {
         mut send_cmd: impl FnMut(Command),
     ) {
         ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 8.0;
+            ui.spacing_mut().item_spacing.x = 12.0; // Increased spacing
             
             // === Transport Buttons ===
             ui.horizontal(|ui| {
@@ -35,7 +36,12 @@ impl TransportPanel {
                 // Play/Pause
                 let play_icon = if state.transport.is_playing { "⏸" } else { "▶" };
                 let play_tip = if state.transport.is_playing { "Pause" } else { "Play" };
-                if transport_button(ui, play_icon, play_tip, state.transport.is_playing).clicked() {
+                
+                // Play button is special - gets colored when playing
+                let play_isActive = state.transport.is_playing;
+                let play_color = if play_isActive { Some(DawColors::PLAY) } else { None };
+                
+                if transport_button_custom(ui, play_icon, play_tip, play_isActive, play_color).clicked() {
                     if state.transport.is_playing {
                         send_cmd(Command::Pause);
                     } else {
@@ -49,7 +55,7 @@ impl TransportPanel {
                     "⏺", 
                     "Record", 
                     state.transport.is_recording,
-                    Color32::from_rgb(220, 50, 50)
+                    DawColors::RECORD
                 ).clicked() {
                     send_cmd(Command::ToggleRecord);
                 }
@@ -59,9 +65,9 @@ impl TransportPanel {
             
             // === Loop Toggle ===
             let loop_color = if state.transport.is_looping {
-                Color32::from_rgb(100, 180, 255)
+                DawColors::LOOP
             } else {
-                Color32::GRAY
+                ui.visuals().text_color()
             };
             if ui.add(
                 egui::Button::new(RichText::new("🔁").size(18.0).color(loop_color))
@@ -77,12 +83,20 @@ impl TransportPanel {
                 state.transport.playhead_beats,
                 state.transport.time_sig_num,
             );
-            ui.label(
-                RichText::new(&position_str)
-                    .size(24.0)
-                    .monospace()
-                    .color(Color32::from_rgb(0, 255, 100))
-            );
+            
+            // LCD Style Display
+            egui::Frame::none()
+                .fill(Color32::from_rgb(10, 10, 12))
+                .stroke(egui::Stroke::new(1.0, Color32::from_rgb(40, 40, 45)))
+                .inner_margin(egui::Margin::symmetric(10, 4))
+                .show(ui, |ui| {
+                    ui.label(
+                        RichText::new(&position_str)
+                            .size(24.0)
+                            .monospace()
+                            .color(DawColors::METER_GREEN)
+                    );
+                });
             
             ui.separator();
             
@@ -136,14 +150,15 @@ impl TransportPanel {
 
 fn transport_button(ui: &mut egui::Ui, icon: &str, tooltip: &str, active: bool) -> egui::Response {
     let color = if active {
-        Color32::from_rgb(100, 200, 100)
+        DawColors::PLAY // Default active color
     } else {
-        Color32::WHITE
+        ui.visuals().text_color()
     };
     
     ui.add(
-        egui::Button::new(RichText::new(icon).size(24.0).color(color))
-            .min_size(Vec2::splat(40.0))
+        egui::Button::new(RichText::new(icon).size(22.0).color(color))
+            .min_size(Vec2::splat(36.0))
+            .frame(true)
     ).on_hover_text(tooltip)
 }
 
@@ -154,11 +169,37 @@ fn transport_button_colored(
     active: bool,
     active_color: Color32
 ) -> egui::Response {
-    let color = if active { active_color } else { Color32::GRAY };
+    let color = if active { active_color } else { ui.visuals().weak_text_color() };
     
     ui.add(
-        egui::Button::new(RichText::new(icon).size(24.0).color(color))
-            .min_size(Vec2::splat(40.0))
+        egui::Button::new(RichText::new(icon).size(22.0).color(color))
+            .min_size(Vec2::splat(36.0))
+            .frame(true)
+    ).on_hover_text(tooltip)
+}
+
+fn transport_button_custom(
+    ui: &mut egui::Ui, 
+    icon: &str, 
+    tooltip: &str, 
+    active: bool,
+    active_color_opt: Option<Color32>
+) -> egui::Response {
+    let mut text = RichText::new(icon).size(22.0);
+    
+    if active {
+        if let Some(col) = active_color_opt {
+            text = text.color(col);
+        }
+    } else {
+        text = text.color(ui.visuals().text_color());
+    }
+    
+    ui.add(
+        egui::Button::new(text)
+            .min_size(Vec2::splat(36.0))
+            .frame(true)
+            .fill(if active { ui.visuals().selection.bg_fill } else { Color32::TRANSPARENT })
     ).on_hover_text(tooltip)
 }
 
@@ -167,7 +208,8 @@ fn format_position(beats: f64, beats_per_bar: u32) -> String {
     let bar = (beats / beats_per_bar) as i32 + 1;
     let beat_in_bar = (beats % beats_per_bar) + 1.0;
     let whole_beat = beat_in_bar as i32;
-    let ticks = ((beat_in_bar - whole_beat as f64) * 960.0) as i32;
+    // Standard DAW style: Bar.Beat.Percent/Tick
+    let ticks = ((beat_in_bar - whole_beat as f64) * 100.0) as i32;
     
-    format!("{:03}.{}.{:03}", bar, whole_beat, ticks)
+    format!("{:03}.{:02}.{:02}", bar, whole_beat, ticks)
 }
