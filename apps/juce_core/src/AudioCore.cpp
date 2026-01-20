@@ -294,10 +294,10 @@ void AudioCore::processCommands()
         if (result.isString()) {
             cmdName = result.toString();
         } else if (auto* obj = result.getDynamicObject()) {
-            auto props = obj->getProperties();
-            if (props.size() > 0) {
-                cmdName = props[0].name.toString();
-                params = props[0].value;
+            for (auto& prop : obj->getProperties()) {
+                cmdName = prop.name.toString();
+                params = obj->getProperty(prop.name);
+                break;  // Only process first property as command
             }
         }
 

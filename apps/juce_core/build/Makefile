@@ -199,6 +199,30 @@ src/AudioCore.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/rysyn_juce_core.dir/build.make CMakeFiles/rysyn_juce_core.dir/src/AudioCore.cpp.s
 .PHONY : src/AudioCore.cpp.s
 
+src/AudioLoader.o: src/AudioLoader.cpp.o
+.PHONY : src/AudioLoader.o
+
+# target to build an object file
+src/AudioLoader.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rysyn_juce_core.dir/build.make CMakeFiles/rysyn_juce_core.dir/src/AudioLoader.cpp.o
+.PHONY : src/AudioLoader.cpp.o
+
+src/AudioLoader.i: src/AudioLoader.cpp.i
+.PHONY : src/AudioLoader.i
+
+# target to preprocess a source file
+src/AudioLoader.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rysyn_juce_core.dir/build.make CMakeFiles/rysyn_juce_core.dir/src/AudioLoader.cpp.i
+.PHONY : src/AudioLoader.cpp.i
+
+src/AudioLoader.s: src/AudioLoader.cpp.s
+.PHONY : src/AudioLoader.s
+
+# target to generate assembly for a file
+src/AudioLoader.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rysyn_juce_core.dir/build.make CMakeFiles/rysyn_juce_core.dir/src/AudioLoader.cpp.s
+.PHONY : src/AudioLoader.cpp.s
+
 src/PluginHost.o: src/PluginHost.cpp.o
 .PHONY : src/PluginHost.o
 
@@ -623,6 +647,9 @@ help:
 	@echo "... src/AudioCore.o"
 	@echo "... src/AudioCore.i"
 	@echo "... src/AudioCore.s"
+	@echo "... src/AudioLoader.o"
+	@echo "... src/AudioLoader.i"
+	@echo "... src/AudioLoader.s"
 	@echo "... src/PluginHost.o"
 	@echo "... src/PluginHost.i"
 	@echo "... src/PluginHost.s"

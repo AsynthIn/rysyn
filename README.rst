@@ -2,6 +2,7 @@ Rysyn - Professional DAW
 ========================
 
 A **next-generation Digital Audio Workstation** combining:
+
 - **JUCE 8.x** (C++) for rock-solid audio engine & plugin hosting
 - **egui 0.31** (Rust) for immediate-mode reactive UI
 - **Rust FFI Bridge** for seamless realtime-safe interop
@@ -11,6 +12,7 @@ Quick Start
 ===========
 
 **Requirements:**
+
 - Rust 1.70+
 - CMake 3.22+
 - JUCE 8.0.4 (auto-downloaded via CMake FetchContent)
@@ -251,18 +253,21 @@ Roadmap
 =======
 
 **Phase 1 (MVP - Current)**
-- [x] Audio core + VST3 hosting
-- [x] Basic UI framework
-- [x] Command/state system
-- [ ] Audio playback (in progress)
+
+- [done] Audio core + VST3 hosting
+- [done] Basic UI framework
+- [done] Command/state system
+- [WIP] Audio playback (in progress)
 
 **Phase 2 (Beta)**
+
 - Recording
 - MIDI sequencing
 - Clip editing
 - Project save/load
 
 **Phase 3 (v1.0)**
+
 - Complex time-stretching
 - Built-in effects suite
 - Advanced plugin routing
