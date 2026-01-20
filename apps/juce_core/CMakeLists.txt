@@ -37,6 +37,8 @@ juce_add_console_app(rysyn_juce_core
 target_sources(rysyn_juce_core PRIVATE
     src/AudioCore.cpp
     src/AudioCore.h
+    src/AudioLoader.cpp
+    src/AudioLoader.h
     src/PluginHost.cpp
     src/PluginHost.h
     src/Transport.cpp

@@ -7,8 +7,6 @@ A **next-generation Digital Audio Workstation** combining:
 - **Rust FFI Bridge** for seamless realtime-safe interop
 - **Python scripting** (PyO3) for automation & extensibility
 
-**Status**: MVP Architecture complete ✅ | Audio core verified ✅ | UI framework ready ✅
-
 Quick Start
 ===========
 
@@ -40,108 +38,6 @@ Quick Start
 
     # Standalone JUCE app - initializes audio, scans plugins, tests transport
     ./apps/juce_core/build/rysyn_juce_core_artefacts/rysyn_juce_core
-
-Project Structure
-=================
-
-::
-
-    rysyn/
-    ├── apps/
-    │   ├── egui_ui/              # 🖥️  Desktop UI (egui + eframe)
-    │   │   ├── src/
-    │   │   │   ├── app.rs        # Main app state + cmd channel
-    │   │   │   ├── panels/       # Transport, Timeline, TrackList, Mixer, Browser, Inspector
-    │   │   │   ├── theme.rs      # Professional styling
-    │   │   │   └── widgets/      # Custom egui widgets (VU meter, waveform, etc)
-    │   │   └── Cargo.toml
-    │   │
-    │   └── juce_core/            # 🎵 Audio engine (C++ / JUCE 8.x)
-    │       ├── src/
-    │       │   ├── AudioCore.cpp/.h     # Main audio processor
-    │       │   ├── PluginHost.cpp/.h    # VST3/AU/LADSPA scanner & loader
-    │       │   ├── TrackProcessor.cpp/  # Per-track audio graph
-    │       │   ├── Transport.cpp/.h     # Tempo/transport/loop logic
-    │       │   └── main.cpp             # Standalone test app
-    │       ├── CMakeLists.txt
-    │       └── include/
-    │           └── rysyn_ffi.h          # Generated C header from cbindgen
-    │
-    ├── crates/
-    │   ├── ffi_bridge/           # ⚡ C-ABI FFI layer (Rust)
-    │   │   ├── src/
-    │   │   │   ├── lib.rs        # Bridge singleton, state/command management
-    │   │   │   ├── ffi.rs        # C exports: rysyn_init, rysyn_get_state_json, etc
-    │   │   │   ├── state.rs      # StateSnapshot struct (what UI reads)
-    │   │   │   └── commands.rs   # Command enum (what UI sends)
-    │   │   ├── Cargo.toml        # staticlib + cdylib + rlib
-    │   │   └── build.rs          # cbindgen for C header generation
-    │   │
-    │   ├── scripting/            # 🐍 Python integration (PyO3)
-    │   │   ├── src/lib.rs        # Python module: rysyn (transport, state, etc)
-    │   │   └── Cargo.toml
-    │   │
-    │   ├── project/              # 📋 Project/session model
-    │   ├── audio_engine/         # (Placeholder - JUCE does most in MVP)
-    │   ├── dsp/                  # (Placeholder - plugin effects)
-    │   ├── render/               # (Placeholder - offline rendering)
-    │   └── rysyn_legacy/         # Old Python bindings (compat)
-    │
-    ├── Cargo.toml               # Workspace config
-    └── README.rst               # This file
-
-
-Architecture
-============
-
-Three-Layer In-Process Architecture
------------------------------------
-
-::
-
-    ┌────────────────────────────────────────────────────────────────┐
-    │  🖥️  LAYER 1: egui UI (Rust)                                  │
-    │  ┌──────────────────────────────────────────────────────────┐ │
-    │  │ Transport │ Timeline │ TrackList │ Mixer │ Inspector     │ │
-    │  │ (rendering each frame, immediate-mode)                  │ │
-    │  └──────────────────────────────────────────────────────────┘ │
-    │              ▲ StateSnapshot (JSON, read-only)                │
-    │              │ Commands (play, solo track, load plugin)       │
-    │              ▼                                                 │
-    ├────────────────────────────────────────────────────────────────┤
-    │  ⚡ LAYER 2: FFI Bridge (Rust + C-ABI)                        │
-    │  ┌──────────────────────────────────────────────────────────┐ │
-    │  │ rysyn_get_state_json() ◄─ UI polls every frame          │ │
-    │  │ rysyn_send_command_json() ◄─ UI sends commands          │ │
-    │  │ rysyn_recv_command_json() ◄─ JUCE polls on msg thread   │ │
-    │  │ rysyn_update_state_json() ◄─ JUCE pushes new state      │ │
-    │  └──────────────────────────────────────────────────────────┘ │
-    │              ▲ Command::Play, Command::SetTempo, etc.         │
-    │              │ StateSnapshot {transport, tracks, meters}      │
-    │              ▼                                                 │
-    ├────────────────────────────────────────────────────────────────┤
-    │  🎵 LAYER 3: JUCE Audio Core (C++ / realtime-safe)            │
-    │  ┌──────────────────────────────────────────────────────────┐ │
-    │  │  JUCE::AudioDeviceManager (ALSA/CoreAudio/WinMM)        │ │
-    │  │    │                                                     │ │
-    │  │    ├─► AudioProcessorGraph                              │ │
-    │  │    │   ├─ Master Bus                                    │ │
-    │  │    │   └─ Tracks (TrackProcessor nodes)                │ │
-    │  │    │       ├─ Track 1 [VST3 Plugin] ─► Output          │ │
-    │  │    │       ├─ Track 2 [Synth] ──────► Output           │ │
-    │  │    │       └─ Track 3 [Audio Clip] ─► Output           │ │
-    │  │    │                                                     │ │
-    │  │    ├─► PluginHost (VST3 scanner + loader)              │ │
-    │  │    │   Found 84+ plugins (Cardinal, Surge, Dexed, etc) │ │
-    │  │    │                                                     │ │
-    │  │    └─► Transport (BPM, tempo, loop logic)              │ │
-    │  │                                                          │ │
-    │  │  Message Thread: Processes commands (safe zone)        │ │
-    │  │  Audio Thread: Processes audio (realtime, no allocs)   │ │
-    │  └──────────────────────────────────────────────────────────┘ │
-    │                                                                 │
-    └────────────────────────────────────────────────────────────────┘
-
 
 Data Flow Principles
 ====================
@@ -355,10 +251,10 @@ Roadmap
 =======
 
 **Phase 1 (MVP - Current)**
-- ✅ Audio core + VST3 hosting
-- ✅ Basic UI framework
-- ✅ Command/state system
-- ⏳ Audio playback (in progress)
+- [x] Audio core + VST3 hosting
+- [x] Basic UI framework
+- [x] Command/state system
+- [ ] Audio playback (in progress)
 
 **Phase 2 (Beta)**
 - Recording
@@ -384,7 +280,3 @@ License
 MIT License - See `LICENSE` file
 
 Inspired by REAPER's architecture and Bitwig's cross-platform approach.
-
----
-
-Questions? Open an issue on GitHub or check `ARCHITECTURE.md` for deep dives on specific systems.

@@ -1,6 +1,7 @@
 #include "AudioCore.h"
 #include "TrackProcessor.h"
 #include "PluginHost.h"
+#include "AudioLoader.h"
 
 namespace rysyn {
 
@@ -272,12 +273,11 @@ void AudioCore::timerCallback()
 void AudioCore::processCommands()
 {
 #ifdef RYSYN_FFI_AVAILABLE
-    // Process up to 100 commands per frame
+    // Process up to 100 commands per frame from Rust bridge
     for (int i = 0; i < 100; ++i) {
         char* cmdJson = rysyn_recv_command_json();
         if (cmdJson == nullptr) break;
 
-        // Parse JSON command
         juce::String jsonStr(cmdJson);
         rysyn_free_string(cmdJson);
 
@@ -287,110 +287,147 @@ void AudioCore::processCommands()
             continue;
         }
 
-        // Commands are serialized as: {"CommandName": null} or {"CommandName": {...params...}}
-        if (auto* obj = result.getDynamicObject()) {
-            for (auto& prop : obj->getProperties()) {
-                auto cmdName = prop.name.toString();
-                auto& params = prop.value;
+        // Deserialize Rust enum format: either string or {"Name": params}
+        juce::String cmdName;
+        juce::var params;
+        
+        if (result.isString()) {
+            cmdName = result.toString();
+        } else if (auto* obj = result.getDynamicObject()) {
+            auto props = obj->getProperties();
+            if (props.size() > 0) {
+                cmdName = props[0].name.toString();
+                params = props[0].value;
+            }
+        }
 
-                if (cmdName == "Play") {
-                    play();
-                }
-                else if (cmdName == "Pause") {
-                    pause();
-                }
-                else if (cmdName == "Stop") {
-                    stop();
-                }
-                else if (cmdName == "ToggleRecord") {
-                    toggleRecord();
-                }
-                else if (cmdName == "ToggleLoop") {
-                    toggleLoop();
-                }
-                else if (cmdName == "SetTempo") {
-                    if (auto* p = params.getDynamicObject()) {
-                        setBpm(p->getProperty("bpm"));
-                    }
-                }
-                else if (cmdName == "SetPlayhead") {
-                    if (auto* p = params.getDynamicObject()) {
-                        setPlayheadBeats(p->getProperty("beats"));
-                    }
-                }
-                else if (cmdName == "SetLoopRegion") {
-                    if (auto* p = params.getDynamicObject()) {
-                        setLoopRegion(p->getProperty("start_beats"), p->getProperty("end_beats"));
-                    }
-                }
-                else if (cmdName == "CreateTrack") {
-                    if (auto* p = params.getDynamicObject()) {
-                        auto trackId = addTrack();
-                        if (trackId >= 0 && trackId < static_cast<int>(tracks.size())) {
-                            auto& track = tracks[trackId];
-                            if (p->hasProperty("name")) {
-                                track->setName(p->getProperty("name").toString());
-                            }
-                            if (p->hasProperty("is_midi")) {
-                                // Store MIDI flag if needed later
-                                // For now, all tracks are audio-capable but can receive MIDI plugins
-                            }
-                        }
-                    }
-                }
-                else if (cmdName == "DeleteTrack") {
-                    if (auto* p = params.getDynamicObject()) {
-                        removeTrack((int)p->getProperty("track_id"));
-                    }
-                }
-                else if (cmdName == "SetTrackVolume") {
-                    if (auto* p = params.getDynamicObject()) {
-                        if (auto* track = getTrack((int)p->getProperty("track_id"))) {
-                            track->setVolume((float)p->getProperty("volume"));
-                        }
-                    }
-                }
-                else if (cmdName == "SetTrackPan") {
-                    if (auto* p = params.getDynamicObject()) {
-                        if (auto* track = getTrack((int)p->getProperty("track_id"))) {
-                            track->setPan((float)p->getProperty("pan"));
-                        }
-                    }
-                }
-                else if (cmdName == "SetTrackMute") {
-                    if (auto* p = params.getDynamicObject()) {
-                        if (auto* track = getTrack((int)p->getProperty("track_id"))) {
-                            track->setMuted((bool)p->getProperty("muted"));
-                        }
-                    }
-                }
-                else if (cmdName == "SetTrackSolo") {
-                    if (auto* p = params.getDynamicObject()) {
-                        if (auto* track = getTrack((int)p->getProperty("track_id"))) {
-                            track->setSoloed((bool)p->getProperty("soloed"));
-                        }
-                    }
-                }
-                else if (cmdName == "RescanPlugins") {
-                    scanPlugins();
-                }
-                else if (cmdName == "LoadPlugin") {
-                    if (auto* p = params.getDynamicObject()) {
-                        int trackId = (int)p->getProperty("track_id");
-                        juce::String pluginId = p->getProperty("plugin_id").toString();
-                        int slot = p->hasProperty("slot") ? (int)p->getProperty("slot") : 0;
-                        loadPlugin(trackId, slot, pluginId);
-                    }
-                }
-                else if (cmdName == "RemovePlugin") {
-                    if (auto* p = params.getDynamicObject()) {
-                        unloadPlugin((int)p->getProperty("track_id"), (int)p->getProperty("slot"));
-                    }
-                }
-                else {
-                    DBG("Unknown command: " << cmdName);
+        // Process commands
+        if (cmdName == "Play") {
+            play();
+        }
+        else if (cmdName == "Pause") {
+            pause();
+        }
+        else if (cmdName == "Stop") {
+            stop();
+        }
+        else if (cmdName == "ToggleRecord") {
+            toggleRecord();
+        }
+        else if (cmdName == "ToggleLoop") {
+            toggleLoop();
+        }
+        else if (cmdName == "SetPlayhead") {
+            if (params.isObject()) {
+                if (auto* p = params.getDynamicObject()) {
+                    setPlayheadBeats((double)p->getProperty("beats"));
                 }
             }
+        }
+        else if (cmdName == "SetTempo") {
+            if (params.isObject()) {
+                if (auto* p = params.getDynamicObject()) {
+                    setBpm((double)p->getProperty("bpm"));
+                }
+            }
+        }
+        else if (cmdName == "SetLoopRegion") {
+            if (params.isObject()) {
+                if (auto* p = params.getDynamicObject()) {
+                    setLoopRegion((double)p->getProperty("start_beats"),
+                                  (double)p->getProperty("end_beats"));
+                }
+            }
+        }
+        else if (cmdName == "CreateTrack") {
+            int trackId = addTrack();
+            if (params.isObject()) {
+                if (auto* p = params.getDynamicObject()) {
+                    if (p->hasProperty("name")) {
+                        if (trackId >= 0 && trackId < static_cast<int>(tracks.size())) {
+                            tracks[trackId]->setName(p->getProperty("name").toString());
+                        }
+                    }
+                }
+            }
+        }
+        else if (cmdName == "CreateAudioClip") {
+            if (params.isObject()) {
+                if (auto* p = params.getDynamicObject()) {
+                    int trackId = (int)p->getProperty("track_id");
+                    juce::String filePath = p->getProperty("path").toString();
+                    double startBeats = (double)p->getProperty("start_beats");
+                    
+                    if (auto* track = getTrack(trackId)) {
+                        // Load audio file
+                        auto audioBuffer = AudioLoader::loadAudioFile(filePath);
+                        if (audioBuffer.getNumSamples() > 0) {
+                            // Calculate clip length in beats
+                            double lengthBeats = (audioBuffer.getNumSamples() * bpm.load()) / (currentSampleRate * 60.0);
+                            
+                            // Add clip to track
+                            juce::File file(filePath);
+                            track->addClip(file.getFileNameWithoutExtension(), audioBuffer, 
+                                         startBeats, lengthBeats);
+                            DBG("Added audio clip to track " << trackId);
+                        } else {
+                            DBG("Failed to load audio file: " << AudioLoader::getLastError());
+                        }
+                    }
+                }
+            }
+        }
+        else if (cmdName == "SetTrackPan") {
+            if (params.isObject()) {
+                if (auto* p = params.getDynamicObject()) {
+                    if (auto* track = getTrack((int)p->getProperty("track_id"))) {
+                        track->setPan((float)p->getProperty("pan"));
+                    }
+                }
+            }
+        }
+        else if (cmdName == "SetTrackMute") {
+            if (params.isObject()) {
+                if (auto* p = params.getDynamicObject()) {
+                    if (auto* track = getTrack((int)p->getProperty("track_id"))) {
+                        track->setMuted((bool)p->getProperty("muted"));
+                    }
+                }
+            }
+        }
+        else if (cmdName == "SetTrackSolo") {
+            if (params.isObject()) {
+                if (auto* p = params.getDynamicObject()) {
+                    if (auto* track = getTrack((int)p->getProperty("track_id"))) {
+                        track->setSoloed((bool)p->getProperty("soloed"));
+                    }
+                }
+            }
+        }
+        else if (cmdName == "RescanPlugins") {
+            scanPlugins();
+        }
+        else if (cmdName == "LoadPlugin") {
+            if (params.isObject()) {
+                if (auto* p = params.getDynamicObject()) {
+                    int trackId = (int)p->getProperty("track_id");
+                    juce::String pluginId = p->getProperty("plugin_id").toString();
+                    int slot = p->hasProperty("slot") ? (int)p->getProperty("slot") : 0;
+                    loadPlugin(trackId, slot, pluginId);
+                }
+            }
+        }
+        else if (cmdName == "RemovePlugin") {
+            if (params.isObject()) {
+                if (auto* p = params.getDynamicObject()) {
+                    int trackId = (int)p->getProperty("track_id");
+                    int slot = (int)p->getProperty("slot");
+                    unloadPlugin(trackId, slot);
+                }
+            }
+        }
+        else {
+            DBG("Unknown command: " << cmdName);
         }
     }
 #endif
