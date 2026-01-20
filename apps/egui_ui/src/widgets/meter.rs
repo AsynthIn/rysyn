@@ -138,7 +138,7 @@ impl egui::Widget for StereoMeter {
                 Vec2::new(meter_width, self.height)
             );
             
-            ui.allocate_ui_at_rect(left_rect, |ui| {
+            ui.allocate_new_ui(egui::UiBuilder::new().max_rect(left_rect), |ui| {
                 ui.add(VuMeter::new(self.left)
                     .with_peak(self.peak_left)
                     .size(meter_width, self.height));
@@ -150,7 +150,7 @@ impl egui::Widget for StereoMeter {
                 Vec2::new(meter_width, self.height)
             );
             
-            ui.allocate_ui_at_rect(right_rect, |ui| {
+            ui.allocate_new_ui(egui::UiBuilder::new().max_rect(right_rect), |ui| {
                 ui.add(VuMeter::new(self.right)
                     .with_peak(self.peak_right)
                     .size(meter_width, self.height));

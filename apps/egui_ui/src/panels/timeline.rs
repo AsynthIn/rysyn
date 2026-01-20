@@ -34,7 +34,7 @@ impl TimelinePanel {
             Vec2::new(available.width(), RULER_HEIGHT)
         );
         
-        ui.allocate_ui_at_rect(ruler_rect, |ui| {
+        ui.allocate_new_ui(egui::UiBuilder::new().max_rect(ruler_rect), |ui| {
             self.draw_ruler(ui, state, ppb, *scroll);
         });
         
@@ -133,11 +133,15 @@ impl TimelinePanel {
         let rect = ui.available_rect_before_wrap();
         let painter = ui.painter();
         
-        // Background
-        painter.rect_filled(rect, 0.0, ui.visuals().faint_bg_color);
+        // Ruler Background gradient
+        let bg_gradient = egui::Mesh::with_texture(egui::TextureId::default());
+        // Simple dark bg
+        painter.rect_filled(rect, 0.0, Color32::from_rgb(30, 30, 35));
+        
+        // Bottom border
         painter.line_segment(
             [rect.left_bottom(), rect.right_bottom()],
-            Stroke::new(1.0, ui.visuals().window_stroke().color)
+            Stroke::new(1.0, Color32::from_rgb(60, 60, 65))
         );
         
         let beats_per_bar = state.transport.time_sig_num.max(1) as f64;
@@ -151,30 +155,45 @@ impl TimelinePanel {
             let is_bar = (beat % beats_per_bar).abs() < 0.01;
             
             if is_bar {
-                // Bar line
+                // Bar tick (Major)
                 painter.line_segment(
-                    [Pos2::new(x, rect.min.y), Pos2::new(x, rect.max.y)],
-                    Stroke::new(1.0, ui.visuals().text_color().linear_multiply(0.5))
+                    [Pos2::new(x, rect.max.y - 12.0), Pos2::new(x, rect.max.y)],
+                    Stroke::new(1.0, Color32::from_rgb(200, 200, 200))
                 );
                 
                 // Bar number
                 let bar_num = (beat / beats_per_bar) as i32 + 1;
                 painter.text(
-                    Pos2::new(x + 5.0, rect.center().y),
+                    Pos2::new(x + 4.0, rect.max.y - 18.0),
                     egui::Align2::LEFT_CENTER,
                     format!("{}", bar_num),
-                    egui::FontId::proportional(12.0),
-                    ui.visuals().text_color()
+                    egui::FontId::monospace(10.0),
+                    Color32::from_rgb(180, 180, 180)
                 );
             } else {
-                // Beat tick
+                // Beat tick (Minor)
                 painter.line_segment(
-                    [Pos2::new(x, rect.max.y - 8.0), Pos2::new(x, rect.max.y)],
-                    Stroke::new(1.0, ui.visuals().text_color().linear_multiply(0.2))
+                    [Pos2::new(x, rect.max.y - 6.0), Pos2::new(x, rect.max.y)],
+                    Stroke::new(1.0, Color32::from_rgb(100, 100, 100))
                 );
             }
             
             beat += 1.0;
+        }
+        
+        // Playhead indicator in ruler
+        let playhead_x = rect.min.x + ((state.transport.playhead_beats - scroll) * ppb as f64) as f32;
+        if playhead_x >= rect.min.x && playhead_x <= rect.max.x {
+            // Triangle pointer
+            painter.add(egui::Shape::convex_polygon(
+                vec![
+                    Pos2::new(playhead_x - 6.0, rect.max.y - 8.0),
+                    Pos2::new(playhead_x + 6.0, rect.max.y - 8.0),
+                    Pos2::new(playhead_x, rect.max.y),
+                ],
+                DawColors::PLAYHEAD,
+                Stroke::NONE
+            ));
         }
     }
     
@@ -190,21 +209,35 @@ impl TimelinePanel {
         let start_beat = scroll.floor();
         let end_beat = scroll + (rect.width() / ppb) as f64 + 1.0;
         
+        // Draw vertical grid lines
         let mut beat = start_beat;
         while beat < end_beat {
             let x = rect.min.x + ((beat - scroll) * ppb as f64) as f32;
             
             let is_bar = (beat % beats_per_bar).abs() < 0.01;
-            let color = if is_bar {
-                DawColors::GRID_BAR
-            } else {
-                DawColors::GRID_BEAT
-            };
             
-            painter.line_segment(
-                [Pos2::new(x, rect.min.y), Pos2::new(x, rect.max.y)],
-                Stroke::new(1.0, color)
-            );
+            if is_bar {
+                // Highlight bar areas (alternate slightly)
+                let bar_idx = (beat / beats_per_bar) as i64;
+                if bar_idx % 2 == 0 {
+                   let next_x = rect.min.x + ((beat + beats_per_bar - scroll) * ppb as f64) as f32;
+                   let bg_rect = Rect::from_min_max(
+                       Pos2::new(x, rect.min.y),
+                       Pos2::new(next_x, rect.max.y)
+                   );
+                   painter.rect_filled(bg_rect, 0.0, Color32::from_white_alpha(3));
+                }
+                
+                painter.line_segment(
+                    [Pos2::new(x, rect.min.y), Pos2::new(x, rect.max.y)],
+                    Stroke::new(1.0, DawColors::GRID_BAR.linear_multiply(0.5))
+                );
+            } else {
+                painter.line_segment(
+                    [Pos2::new(x, rect.min.y), Pos2::new(x, rect.max.y)],
+                    Stroke::new(1.0, DawColors::GRID_BEAT.linear_multiply(0.3))
+                );
+            }
             
             beat += 1.0;
         }

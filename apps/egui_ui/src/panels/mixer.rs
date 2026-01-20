@@ -47,14 +47,13 @@ impl MixerPanel {
         meters: &MeterLevels,
         send_cmd: &mut impl FnMut(Command),
     ) {
-        let available_height = ui.available_height();
-        
         egui::Frame::new()
             .fill(ui.visuals().window_fill)
             .stroke(ui.visuals().window_stroke)
             .inner_margin(4.0)
             .corner_radius(4.0)
             .show(ui, |ui| {
+                let available_height = ui.available_height();
                 ui.allocate_ui(Vec2::new(CHANNEL_WIDTH, available_height), |ui| {
                     ui.vertical(|ui| {
                         // Color label at top
@@ -146,7 +145,7 @@ impl MixerPanel {
                         ui.add_space(8.0);
                         
                         // Fader + Meter area
-                        let remaining = ui.available_height() - 50.0;
+                        let remaining = (ui.available_height() - 50.0).max(10.0);
                         ui.horizontal(|ui| {
                             // Meter
                             self.draw_meter(ui, remaining, 
@@ -178,7 +177,7 @@ impl MixerPanel {
                         // For now just label
                         let db = if track.volume > 0.0 { 20.0 * (track.volume as f64).log10() } else { -60.0 };
                         
-                        egui::Frame::none()
+                        egui::Frame::NONE
                             .fill(Color32::from_black_alpha(80))
                             .corner_radius(2.0)
                             .show(ui, |ui| {
@@ -226,7 +225,7 @@ impl MixerPanel {
                         ui.add_space(8.0);
                         
                         // Fader + Meter
-                        let remaining = ui.available_height() - 50.0;
+                        let remaining = (ui.available_height() - 50.0).max(10.0);
                         
                         ui.horizontal(|ui| {
                             // Master meter (stereo)
@@ -253,7 +252,7 @@ impl MixerPanel {
                         // dB display
                         let db = if state.master_volume > 0.0 { 20.0 * (state.master_volume as f64).log10() } else { -60.0 };
                         
-                        egui::Frame::none()
+                        egui::Frame::NONE
                             .fill(Color32::from_black_alpha(80))
                             .corner_radius(2.0)
                             .show(ui, |ui| {
@@ -294,37 +293,50 @@ impl MixerPanel {
     }
     
     fn draw_meter_channel(&self, painter: &egui::Painter, rect: Rect, level: f32) {
-        // Convert to dB and normalize
+        // Background
+        painter.rect_filled(rect, 1.0, Color32::from_black_alpha(200));
+        
+        // Convert level to dB
         let db = if level > 0.0 {
             20.0 * (level as f64).log10()
         } else {
             -60.0
         };
         
-        // Map -60dB to +6dB to 0.0 to 1.0
-        let normalized = ((db + 60.0) / 66.0).clamp(0.0, 1.0) as f32;
+        // Constants for metering
+        const SEGMENT_HEIGHT: f32 = 2.0;
+        const GAP: f32 = 1.0;
+        let total_steps = (rect.height() / (SEGMENT_HEIGHT + GAP)) as i32;
         
-        // Calculate fill height
-        let fill_height = rect.height() * normalized;
-        
-        // Gradient fill
-        let fill_rect = Rect::from_min_max(
-            Pos2::new(rect.min.x, rect.max.y - fill_height),
-            rect.max
-        );
-        
-        // Color based on level
-        let color = if db > 0.0 {
-            DawColors::METER_RED
-        } else if db > -6.0 {
-            DawColors::METER_YELLOW
-        } else {
-            DawColors::METER_GREEN
-        };
-        
-        painter.rect_filled(fill_rect, 1.0, color);
-        
-        // Peak indicator
-        // (In a real implementation, this would track peak hold)
+        for i in 0..total_steps {
+            let y_pos = rect.max.y - (i as f32 * (SEGMENT_HEIGHT + GAP)) - SEGMENT_HEIGHT;
+            if y_pos < rect.min.y { break; }
+            
+            let segment_rect = Rect::from_min_max(
+                Pos2::new(rect.min.x, y_pos),
+                Pos2::new(rect.max.x, y_pos + SEGMENT_HEIGHT)
+            );
+            
+            // Calculate dB for this step
+            // Map 0..total_steps to -60..+6 dB
+            let step_normalized = i as f64 / total_steps as f64;
+            let step_db = -60.0 + (step_normalized * 66.0);
+            
+            // Determine color based on step dB (not current level)
+            let mut color = if step_db > 0.0 {
+                DawColors::METER_RED
+            } else if step_db > -12.0 {
+                DawColors::METER_YELLOW
+            } else {
+                DawColors::METER_GREEN
+            };
+            
+            // Dim if signal is below this step
+            if db < step_db {
+                color = color.linear_multiply(0.2);
+            }
+            
+            painter.rect_filled(segment_rect, 1.0, color);
+        }
     }
 }

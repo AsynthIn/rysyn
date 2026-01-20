@@ -178,9 +178,9 @@ impl BrowserPanel {
         // Plugin categories
         ui.horizontal(|ui| {
             ui.label("Category:");
-            ui.selectable_label(true, "All");
-            ui.selectable_label(false, "Instruments");
-            ui.selectable_label(false, "Effects");
+            let _ = ui.selectable_label(true, "All");
+            let _ = ui.selectable_label(false, "Instruments");
+            let _ = ui.selectable_label(false, "Effects");
         });
         
         ui.separator();

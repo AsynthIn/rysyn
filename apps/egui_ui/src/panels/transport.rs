@@ -18,131 +18,130 @@ impl TransportPanel {
         state: &StateSnapshot,
         mut send_cmd: impl FnMut(Command),
     ) {
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 12.0; // Increased spacing
+        // Center the transport bar
+        ui.vertical_centered(|ui| {
+            ui.set_min_height(60.0); // Ensure minimum height for the bar
             
-            // === Transport Buttons ===
             ui.horizontal(|ui| {
-                // Rewind to start
-                if transport_button(ui, "⏮", "Return to Start", false).clicked() {
-                    send_cmd(Command::SetPlayhead { beats: 0.0 });
-                }
+                 // Spacing from left
+                let total_width = ui.available_width();
+                // A very rough attempt to center:
+                // We use spaces. But better is to just lay it out.
+                // Since vertical_centered centers the block, horizontal just flows.
+                // To truly center a horizontal strip, we need layout details.
+                // Let's just use nice spacing.
                 
-                // Stop
-                if transport_button(ui, "⏹", "Stop", false).clicked() {
-                    send_cmd(Command::Stop);
-                }
+                ui.add_space((total_width - 800.0).max(0.0) / 2.0);
+            
+                ui.spacing_mut().item_spacing.x = 16.0; // Comfort spacing
                 
-                // Play/Pause
-                let play_icon = if state.transport.is_playing { "⏸" } else { "▶" };
-                let play_tip = if state.transport.is_playing { "Pause" } else { "Play" };
-                
-                // Play button is special - gets colored when playing
-                let play_isActive = state.transport.is_playing;
-                let play_color = if play_isActive { Some(DawColors::PLAY) } else { None };
-                
-                if transport_button_custom(ui, play_icon, play_tip, play_isActive, play_color).clicked() {
-                    if state.transport.is_playing {
-                        send_cmd(Command::Pause);
-                    } else {
-                        send_cmd(Command::Play);
+                // === Transport Buttons Group ===
+                ui.group(|ui| {
+                    ui.spacing_mut().item_spacing.x = 4.0;
+                    ui.style_mut().visuals.widgets.inactive.corner_radius = eframe::egui::CornerRadius::same(18);
+                    
+                    // Rewind to start
+                    if transport_button(ui, "⏮", "Return to Start", false).clicked() {
+                        send_cmd(Command::SetPlayhead { beats: 0.0 });
                     }
-                }
-                
-                // Record
-                if transport_button_colored(
-                    ui, 
-                    "⏺", 
-                    "Record", 
-                    state.transport.is_recording,
-                    DawColors::RECORD
-                ).clicked() {
-                    send_cmd(Command::ToggleRecord);
-                }
-            });
-            
-            ui.separator();
-            
-            // === Loop Toggle ===
-            let loop_color = if state.transport.is_looping {
-                DawColors::LOOP
-            } else {
-                ui.visuals().text_color()
-            };
-            if ui.add(
-                egui::Button::new(RichText::new("🔁").size(18.0).color(loop_color))
-                    .frame(false)
-            ).on_hover_text("Toggle Loop").clicked() {
-                send_cmd(Command::ToggleLoop);
-            }
-            
-            ui.separator();
-            
-            // === Time Display ===
-            let position_str = format_position(
-                state.transport.playhead_beats,
-                state.transport.time_sig_num,
-            );
-            
-            // LCD Style Display
-            egui::Frame::none()
-                .fill(Color32::from_rgb(10, 10, 12))
-                .stroke(egui::Stroke::new(1.0, Color32::from_rgb(40, 40, 45)))
-                .inner_margin(egui::Margin::symmetric(10, 4))
-                .show(ui, |ui| {
-                    ui.label(
-                        RichText::new(&position_str)
-                            .size(24.0)
-                            .monospace()
-                            .color(DawColors::METER_GREEN)
-                    );
+                    
+                    // Stop
+                    if transport_button(ui, "⏹", "Stop", !state.transport.is_playing && state.transport.playhead_beats == 0.0).clicked() {
+                        send_cmd(Command::Stop);
+                    }
+                    
+                    // Play/Pause
+                    let play_icon = if state.transport.is_playing { "⏸" } else { "▶" };
+                    let play_tip = if state.transport.is_playing { "Pause" } else { "Play" };
+                    
+                    let play_is_active = state.transport.is_playing;
+                    let play_color = if play_is_active { Some(DawColors::PLAY) } else { None };
+                    
+                    if transport_button_custom(ui, play_icon, play_tip, play_is_active, play_color).clicked() {
+                         if state.transport.is_playing { send_cmd(Command::Pause); } else { send_cmd(Command::Play); }
+                    }
+                    
+                    // Record
+                    if transport_button_colored(ui, "⏺", "Record", state.transport.is_recording, DawColors::RECORD).clicked() {
+                        send_cmd(Command::ToggleRecord);
+                    }
+                    
+                    // Loop Toggle
+                    let loop_active = state.transport.is_looping;
+                    if transport_button_colored(ui, "🔁", "Toggle Loop", loop_active, DawColors::LOOP).clicked() {
+                         send_cmd(Command::ToggleLoop);
+                    }
                 });
-            
-            ui.separator();
-            
-            // === BPM ===
-            ui.label("BPM:");
-            
-            // Editable BPM field
-            let bpm_text = self.bpm_edit.clone()
-                .unwrap_or_else(|| format!("{:.1}", state.transport.tempo));
-            
-            let mut edit_text = self.bpm_edit.get_or_insert(bpm_text).clone();
-            let response = ui.add(
-                egui::TextEdit::singleline(&mut edit_text)
-                    .desired_width(60.0)
-                    .font(egui::TextStyle::Monospace)
-            );
-            self.bpm_edit = Some(edit_text);
-            
-            if response.lost_focus() {
-                if let Some(ref text) = self.bpm_edit {
-                    if let Ok(new_bpm) = text.parse::<f64>() {
-                        send_cmd(Command::SetTempo { bpm: new_bpm });
-                    }
-                }
-                self.bpm_edit = None;
-            }
-            
-            ui.separator();
-            
-            // === Time Signature ===
-            ui.label(format!("{}/{}", 
-                state.transport.time_sig_num, 
-                state.transport.time_sig_denom
-            ));
-            
-            // === Right side: Seconds display ===
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let seconds = state.transport.playhead_seconds;
-                let minutes = (seconds / 60.0) as i32;
-                let secs = seconds % 60.0;
-                ui.label(
-                    RichText::new(format!("{:02}:{:05.2}", minutes, secs))
-                        .size(18.0)
-                        .monospace()
-                        .color(Color32::GRAY)
+                
+                ui.add_space(8.0);
+                
+                // === Time Display (LCD) ===
+                let position_str = format_position(
+                    state.transport.playhead_beats,
+                    state.transport.time_sig_num,
                 );
+                
+                egui::Frame::NONE
+                    .fill(Color32::from_rgb(5, 5, 8))
+                    .stroke(egui::Stroke::new(2.0, Color32::from_rgb(30, 30, 35)))
+                    .inner_margin(egui::Margin::symmetric(16, 6))
+                    .corner_radius(4.0)
+                    .show(ui, |ui| {
+                        ui.label(
+                            RichText::new(&position_str)
+                                .size(32.0)
+                                .monospace()
+                                .color(DawColors::METER_GREEN.linear_multiply(1.2))
+                        ).on_hover_text("Position: Bar.Beat.Tick");
+                    });
+                
+                ui.add_space(8.0);
+                
+                // === Info Group ===
+                ui.group(|ui| {
+                    ui.spacing_mut().item_spacing.x = 12.0;
+                    
+                     // BPM
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("BPM").size(10.0).color(ui.visuals().weak_text_color()));
+                        // Editable BPM field
+                        let bpm_text = self.bpm_edit.clone()
+                            .unwrap_or_else(|| format!("{:.1}", state.transport.tempo));
+                        
+                        let mut edit_text = self.bpm_edit.get_or_insert(bpm_text).clone();
+                        let response = ui.add(
+                            egui::TextEdit::singleline(&mut edit_text)
+                                .desired_width(50.0)
+                                .font(egui::TextStyle::Monospace)
+                        );
+                        self.bpm_edit = Some(edit_text);
+                        
+                        if response.lost_focus() || ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                            if let Some(ref text) = self.bpm_edit {
+                                if let Ok(new_bpm) = text.parse::<f64>() {
+                                    send_cmd(Command::SetTempo { bpm: new_bpm });
+                                }
+                            }
+                            self.bpm_edit = None;
+                        }
+                    });
+
+                     // Time Sig
+                    ui.separator();
+                     ui.horizontal(|ui| {
+                        ui.label(RichText::new("SIG").size(10.0).color(ui.visuals().weak_text_color()));
+                        ui.label(format!("{}/{}", state.transport.time_sig_num, state.transport.time_sig_denom));
+                    });
+                     
+                    // CPU/Time
+                    ui.separator();
+                     ui.horizontal(|ui| {
+                        let seconds = state.transport.playhead_seconds;
+                        let minutes = (seconds / 60.0) as i32;
+                        let secs = seconds % 60.0;
+                        ui.monospace(format!("{:02}:{:05.2}", minutes, secs));
+                    });
+                });
             });
         });
     }

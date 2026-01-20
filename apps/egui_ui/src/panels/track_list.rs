@@ -105,7 +105,7 @@ impl TrackListPanel {
             Pos2::new(rect.max.x - 4.0, rect.max.y - 4.0)
         );
         
-        ui.allocate_ui_at_rect(content_rect, |ui| {
+        ui.allocate_new_ui(egui::UiBuilder::new().max_rect(content_rect), |ui| {
             ui.vertical(|ui| {
                 // Top row: Name + Type
                 ui.horizontal(|ui| {

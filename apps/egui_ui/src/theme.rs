@@ -25,29 +25,29 @@ pub fn setup_dark_theme(ctx: &egui::Context) {
     let mut style = Style::default();
     
     // === Color Palette (Obsidian / Professional Dark) ===
-    let bg_app      = Color32::from_rgb(18, 18, 20);      // Deepest background
-    let bg_panel    = Color32::from_rgb(28, 28, 30);      // Panel background
-    let bg_subpanel = Color32::from_rgb(34, 34, 37);      // Inner containers
-    let bg_widget   = Color32::from_rgb(42, 42, 45);      // Default widget bg
+    let bg_app      = Color32::from_rgb(10, 10, 12);      // Deepest background (almost black)
+    let bg_panel    = Color32::from_rgb(22, 22, 25);      // Panel background
+    let bg_subpanel = Color32::from_rgb(30, 30, 34);      // Inner containers
+    let bg_widget   = Color32::from_rgb(45, 45, 50);      // Default widget bg
     
     // Accents
-    let accent_primary = Color32::from_rgb(50, 140, 240); // Professional Blue
-    let accent_hover   = Color32::from_rgb(80, 160, 255);
-    let accent_active  = Color32::from_rgb(30, 120, 220);
+    let accent_primary = Color32::from_rgb(0, 150, 255);  // Professional Blue
+    let accent_hover   = Color32::from_rgb(50, 180, 255);
+    let accent_active  = Color32::from_rgb(0, 120, 220);
     
     // Text
-    let text_primary   = Color32::from_rgb(240, 240, 240);
-    let text_secondary = Color32::from_rgb(160, 160, 165);
+    let text_primary   = Color32::from_rgb(240, 240, 245);
+    let text_secondary = Color32::from_rgb(140, 140, 150);
 
     // Borders
-    let border_color   = Color32::from_rgb(55, 55, 58);
+    let border_color   = Color32::from_rgb(50, 50, 55);
     
     // === Spacing & Sizes ===
-    style.spacing.item_spacing = egui::vec2(8.0, 6.0);
-    style.spacing.window_margin = Margin::same(8);
-    style.spacing.button_padding = egui::vec2(8.0, 5.0);
-    style.spacing.menu_margin = Margin::same(6);
-    style.spacing.indent = 18.0;
+    style.spacing.item_spacing = egui::vec2(10.0, 8.0);
+    style.spacing.window_margin = Margin::same(10);
+    style.spacing.button_padding = egui::vec2(10.0, 6.0);
+    style.spacing.menu_margin = Margin::same(8);
+    style.spacing.indent = 20.0;
     
     // === Visuals ===
     let visuals = Visuals {
@@ -58,7 +58,7 @@ pub fn setup_dark_theme(ctx: &egui::Context) {
         panel_fill: bg_panel,
         window_fill: bg_panel,
         window_stroke: Stroke::new(1.0, border_color),
-        window_corner_radius: CornerRadius::same(6),
+        window_corner_radius: CornerRadius::same(8),
         
         // Widgets
         widgets: egui::style::Widgets {
@@ -66,15 +66,15 @@ pub fn setup_dark_theme(ctx: &egui::Context) {
                 bg_fill: bg_panel,
                 weak_bg_fill: bg_panel,
                 bg_stroke: Stroke::new(1.0, border_color),
-                corner_radius: CornerRadius::same(4),
+                corner_radius: CornerRadius::same(6),
                 fg_stroke: Stroke::new(1.0, text_secondary),
                 expansion: 0.0,
             },
             inactive: egui::style::WidgetVisuals {
                 bg_fill: bg_widget,
                 weak_bg_fill: bg_widget, 
-                bg_stroke: Stroke::new(0.0, Color32::TRANSPARENT), 
-                corner_radius: CornerRadius::same(3),
+                bg_stroke: Stroke::new(1.0, border_color.linear_multiply(0.5)), 
+                corner_radius: CornerRadius::same(5),
                 fg_stroke: Stroke::new(1.0, text_primary),
                 expansion: 0.0,
             },
@@ -82,7 +82,7 @@ pub fn setup_dark_theme(ctx: &egui::Context) {
                 bg_fill: bg_widget.lighten(),
                 weak_bg_fill: bg_widget.lighten(),
                 bg_stroke: Stroke::new(1.0, accent_hover),
-                corner_radius: CornerRadius::same(3),
+                corner_radius: CornerRadius::same(5),
                 fg_stroke: Stroke::new(1.0, text_primary),
                 expansion: 1.0,
             },
@@ -90,15 +90,15 @@ pub fn setup_dark_theme(ctx: &egui::Context) {
                 bg_fill: accent_active,
                 weak_bg_fill: accent_active,
                 bg_stroke: Stroke::new(0.0, Color32::TRANSPARENT),
-                corner_radius: CornerRadius::same(3),
+                corner_radius: CornerRadius::same(5),
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
                 expansion: 1.0,
             },
             open: egui::style::WidgetVisuals {
                 bg_fill: bg_subpanel,
                 weak_bg_fill: bg_subpanel,
-                bg_stroke: Stroke::new(1.0, border_color),
-                corner_radius: CornerRadius::same(3),
+                bg_stroke: Stroke::new(1.0, accent_primary),
+                corner_radius: CornerRadius::same(5),
                 fg_stroke: Stroke::new(1.0, text_primary),
                 expansion: 0.0,
             },
