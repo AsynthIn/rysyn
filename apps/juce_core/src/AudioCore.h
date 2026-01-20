@@ -112,8 +112,13 @@ private:
     std::atomic<bool> looping{false};
     std::atomic<double> playheadBeats{0.0};
     std::atomic<double> bpm{120.0};
-    double loopStartBeats = 0.0;
-    double loopEndBeats = 16.0;
+    std::atomic<double> loopStartBeats{0.0};
+    std::atomic<double> loopEndBeats{16.0};
+
+    // Master metering
+    std::atomic<float> masterPeakL{0.0f};
+    std::atomic<float> masterPeakR{0.0f};
+    std::atomic<float> masterVolume{1.0f};
 
     // Audio state
     int currentSampleRate = 44100;

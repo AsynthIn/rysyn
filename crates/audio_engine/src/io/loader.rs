@@ -44,8 +44,24 @@ impl AudioLoader {
                 Ok(packet) => packet,
                 Err(Error::IoError(_)) => break, // End of stream
                 Err(Error::ResetRequired) => {
-                     // The track list has been changed. Re-examine it and create a new decoder instance.
-                     unimplemented!("track list change unimplemented");
+                    // The track list has been changed. Re-examine it and create a new decoder instance.
+                    // This typically happens with streaming formats that can change tracks mid-stream.
+                    // For now, we'll try to continue by getting the track again and creating a new decoder.
+                    match format.tracks().iter().find(|t| t.codec_params.codec != CODEC_TYPE_NULL) {
+                        Some(new_track) => {
+                            let new_dec_opts: DecoderOptions = Default::default();
+                            match symphonia::default::get_codecs()
+                                .make(&new_track.codec_params, &new_dec_opts)
+                            {
+                                Ok(new_decoder) => {
+                                    decoder = new_decoder;
+                                    continue;
+                                }
+                                Err(e) => return Err(format!("Failed to recreate decoder: {}", e)),
+                            }
+                        }
+                        None => return Err("No valid audio track found after reset".to_string()),
+                    }
                 }
                 Err(err) => return Err(err.to_string()),
             };

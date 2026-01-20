@@ -19,7 +19,7 @@ egui = "0.31"
 egui_extras = { version = "0.31", features = ["all_loaders"] }
 cpal = "0.17"
 symphonia = { version = "0.5", features = ["all"] }
-pyo3 = { version = "0.23", features = ["extension-module"] }
+pyo3 = { version = "0.24", features = ["extension-module"] }
 crossbeam-channel = "0.5"
 parking_lot = "0.12"
 log = "0.4"

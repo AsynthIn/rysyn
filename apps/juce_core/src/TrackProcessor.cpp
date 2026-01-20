@@ -36,6 +36,25 @@ void TrackProcessor::releaseResources()
     tempBuffer.setSize(0, 0);
 }
 
+void TrackProcessor::addClip(const juce::String& name, const juce::AudioBuffer<float>& audioData,
+                              double startBeats, double lengthBeats)
+{
+    Clip clip;
+    clip.name = name;
+    clip.audioData.makeCopyOf(audioData);
+    clip.startBeats = startBeats;
+    clip.lengthBeats = lengthBeats;
+    clip.enabled = true;
+    clips.push_back(std::move(clip));
+}
+
+void TrackProcessor::removeClip(int index)
+{
+    if (index >= 0 && index < static_cast<int>(clips.size())) {
+        clips.erase(clips.begin() + index);
+    }
+}
+
 void TrackProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
                                    double playheadBeats, 
                                    double bpm, 
@@ -48,7 +67,40 @@ void TrackProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     const int numSamples = buffer.getNumSamples();
     const int numChannels = buffer.getNumChannels();
 
-    // TODO: Process audio clips based on playhead position
+    // Process audio clips based on playhead position
+    // For each clip that overlaps with current buffer
+    for (auto& clip : clips) {
+        if (!clip.enabled || clip.audioData.getNumSamples() == 0) {
+            continue;
+        }
+
+        // Check if clip is active during this buffer
+        if (playheadBeats < clip.startBeats || 
+            playheadBeats >= clip.startBeats + clip.lengthBeats) {
+            continue;
+        }
+
+        // Calculate sample offset into clip
+        // 1 beat = sampleRate * 60 / bpm samples
+        const double samplesPerBeat = (sampleRate * 60.0) / bpm;
+        const double offsetBeats = playheadBeats - clip.startBeats;
+        const int clipStartSample = static_cast<int>(offsetBeats * samplesPerBeat);
+        const int clipNumSamples = clip.audioData.getNumSamples();
+
+        // Mix clip samples into output buffer
+        const int srcChannels = clip.audioData.getNumChannels();
+        for (int ch = 0; ch < numChannels && ch < srcChannels; ++ch) {
+            const float* clipData = clip.audioData.getReadPointer(ch);
+            float* outData = buffer.getWritePointer(ch);
+
+            for (int sample = 0; sample < numSamples; ++sample) {
+                const int clipSample = clipStartSample + sample;
+                if (clipSample >= 0 && clipSample < clipNumSamples) {
+                    outData[sample] += clipData[clipSample];
+                }
+            }
+        }
+    }
 
     // Process plugin chain
     juce::MidiBuffer midiBuffer;

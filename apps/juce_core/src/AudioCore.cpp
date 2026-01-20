@@ -277,13 +277,121 @@ void AudioCore::processCommands()
         char* cmdJson = rysyn_recv_command_json();
         if (cmdJson == nullptr) break;
 
-        // Parse and handle command
+        // Parse JSON command
         juce::String jsonStr(cmdJson);
         rysyn_free_string(cmdJson);
 
-        // TODO: Parse JSON and dispatch command
-        // For now, just log
-        DBG("Received command: " << jsonStr);
+        auto result = juce::JSON::parse(jsonStr);
+        if (result.isVoid()) {
+            DBG("Failed to parse command JSON: " << jsonStr);
+            continue;
+        }
+
+        // Commands are serialized as: {"CommandName": null} or {"CommandName": {...params...}}
+        if (auto* obj = result.getDynamicObject()) {
+            for (auto& prop : obj->getProperties()) {
+                auto cmdName = prop.name.toString();
+                auto& params = prop.value;
+
+                if (cmdName == "Play") {
+                    play();
+                }
+                else if (cmdName == "Pause") {
+                    pause();
+                }
+                else if (cmdName == "Stop") {
+                    stop();
+                }
+                else if (cmdName == "ToggleRecord") {
+                    toggleRecord();
+                }
+                else if (cmdName == "ToggleLoop") {
+                    toggleLoop();
+                }
+                else if (cmdName == "SetTempo") {
+                    if (auto* p = params.getDynamicObject()) {
+                        setBpm(p->getProperty("bpm"));
+                    }
+                }
+                else if (cmdName == "SetPlayhead") {
+                    if (auto* p = params.getDynamicObject()) {
+                        setPlayheadBeats(p->getProperty("beats"));
+                    }
+                }
+                else if (cmdName == "SetLoopRegion") {
+                    if (auto* p = params.getDynamicObject()) {
+                        setLoopRegion(p->getProperty("start_beats"), p->getProperty("end_beats"));
+                    }
+                }
+                else if (cmdName == "CreateTrack") {
+                    if (auto* p = params.getDynamicObject()) {
+                        auto trackId = addTrack();
+                        if (trackId >= 0 && trackId < static_cast<int>(tracks.size())) {
+                            auto& track = tracks[trackId];
+                            if (p->hasProperty("name")) {
+                                track->setName(p->getProperty("name").toString());
+                            }
+                            if (p->hasProperty("is_midi")) {
+                                // Store MIDI flag if needed later
+                                // For now, all tracks are audio-capable but can receive MIDI plugins
+                            }
+                        }
+                    }
+                }
+                else if (cmdName == "DeleteTrack") {
+                    if (auto* p = params.getDynamicObject()) {
+                        removeTrack((int)p->getProperty("track_id"));
+                    }
+                }
+                else if (cmdName == "SetTrackVolume") {
+                    if (auto* p = params.getDynamicObject()) {
+                        if (auto* track = getTrack((int)p->getProperty("track_id"))) {
+                            track->setVolume((float)p->getProperty("volume"));
+                        }
+                    }
+                }
+                else if (cmdName == "SetTrackPan") {
+                    if (auto* p = params.getDynamicObject()) {
+                        if (auto* track = getTrack((int)p->getProperty("track_id"))) {
+                            track->setPan((float)p->getProperty("pan"));
+                        }
+                    }
+                }
+                else if (cmdName == "SetTrackMute") {
+                    if (auto* p = params.getDynamicObject()) {
+                        if (auto* track = getTrack((int)p->getProperty("track_id"))) {
+                            track->setMuted((bool)p->getProperty("muted"));
+                        }
+                    }
+                }
+                else if (cmdName == "SetTrackSolo") {
+                    if (auto* p = params.getDynamicObject()) {
+                        if (auto* track = getTrack((int)p->getProperty("track_id"))) {
+                            track->setSoloed((bool)p->getProperty("soloed"));
+                        }
+                    }
+                }
+                else if (cmdName == "RescanPlugins") {
+                    scanPlugins();
+                }
+                else if (cmdName == "LoadPlugin") {
+                    if (auto* p = params.getDynamicObject()) {
+                        int trackId = (int)p->getProperty("track_id");
+                        juce::String pluginId = p->getProperty("plugin_id").toString();
+                        int slot = p->hasProperty("slot") ? (int)p->getProperty("slot") : 0;
+                        loadPlugin(trackId, slot, pluginId);
+                    }
+                }
+                else if (cmdName == "RemovePlugin") {
+                    if (auto* p = params.getDynamicObject()) {
+                        unloadPlugin((int)p->getProperty("track_id"), (int)p->getProperty("slot"));
+                    }
+                }
+                else {
+                    DBG("Unknown command: " << cmdName);
+                }
+            }
+        }
     }
 #endif
 }
@@ -291,18 +399,38 @@ void AudioCore::processCommands()
 void AudioCore::updateStateSnapshot()
 {
 #ifdef RYSYN_FFI_AVAILABLE
-    // Build state JSON
+    // Build state JSON matching Rust StateSnapshot structure
     juce::DynamicObject::Ptr state = new juce::DynamicObject();
     
-    // Transport
+    // Transport state
     juce::DynamicObject::Ptr transport = new juce::DynamicObject();
     transport->setProperty("is_playing", playing.load());
     transport->setProperty("is_recording", recording.load());
     transport->setProperty("is_looping", looping.load());
     transport->setProperty("playhead_beats", playheadBeats.load());
     transport->setProperty("playhead_seconds", getPlayheadSeconds());
-    transport->setProperty("bpm", bpm.load());
+    transport->setProperty("tempo", bpm.load());
+    transport->setProperty("time_sig_num", 4);
+    transport->setProperty("time_sig_denom", 4);
+    transport->setProperty("loop_start_beats", loopStartBeats.load());
+    transport->setProperty("loop_end_beats", loopEndBeats.load());
     state->setProperty("transport", juce::var(transport.get()));
+
+    // Meter levels
+    juce::DynamicObject::Ptr meters = new juce::DynamicObject();
+    meters->setProperty("master_l", masterPeakL.load());
+    meters->setProperty("master_r", masterPeakR.load());
+    juce::Array<juce::var> trackLevelsL, trackLevelsR;
+    {
+        juce::ScopedLock lock(trackLock);
+        for (auto& track : tracks) {
+            trackLevelsL.add(track->getPeakL());
+            trackLevelsR.add(track->getPeakR());
+        }
+    }
+    meters->setProperty("track_levels_l", trackLevelsL);
+    meters->setProperty("track_levels_r", trackLevelsR);
+    state->setProperty("meters", juce::var(meters.get()));
 
     // Tracks
     juce::Array<juce::var> tracksArray;
@@ -312,22 +440,63 @@ void AudioCore::updateStateSnapshot()
             juce::DynamicObject::Ptr trackObj = new juce::DynamicObject();
             trackObj->setProperty("id", track->getId());
             trackObj->setProperty("name", track->getName());
+            trackObj->setProperty("color", (int)0xFF808080);
             trackObj->setProperty("volume", track->getVolume());
             trackObj->setProperty("pan", track->getPan());
-            trackObj->setProperty("mute", track->isMuted());
-            trackObj->setProperty("solo", track->isSoloed());
+            trackObj->setProperty("is_muted", track->isMuted());
+            trackObj->setProperty("is_soloed", track->isSoloed());
+            trackObj->setProperty("is_armed", false);
+            trackObj->setProperty("is_midi", false);
+            trackObj->setProperty("is_selected", track->isSelected());
+            trackObj->setProperty("input_name", "No Input");
+            trackObj->setProperty("output_name", "Master");
+            
+            // Plugin slots
+            juce::Array<juce::var> pluginsArray;
+            for (int i = 0; i < 8; ++i) {
+                auto* plugin = track->getPlugin(i);
+                if (plugin) {
+                    pluginsArray.add(plugin->getName());
+                } else {
+                    pluginsArray.add(juce::var());
+                }
+            }
+            trackObj->setProperty("plugins", pluginsArray);
+            
             tracksArray.add(juce::var(trackObj.get()));
         }
     }
     state->setProperty("tracks", tracksArray);
 
-    // System
+    // Clips (empty for now)
+    state->setProperty("clips", juce::Array<juce::var>());
+
+    // Available plugins
+    juce::Array<juce::var> pluginsArray;
+    int pluginCount = pluginHost->getPluginCount();
+    for (int i = 0; i < pluginCount; ++i) {
+        juce::DynamicObject::Ptr pluginObj = new juce::DynamicObject();
+        pluginObj->setProperty("id", pluginHost->getPluginId(i));
+        pluginObj->setProperty("name", pluginHost->getPluginName(i));
+        pluginObj->setProperty("manufacturer", pluginHost->getPluginVendor(i));
+        pluginObj->setProperty("format", "VST3");
+        pluginObj->setProperty("path", "");
+        pluginObj->setProperty("is_instrument", pluginHost->isPluginInstrument(i));
+        pluginsArray.add(juce::var(pluginObj.get()));
+    }
+    state->setProperty("available_plugins", pluginsArray);
+
+    // System info
+    state->setProperty("master_volume", masterVolume.load());
     state->setProperty("cpu_load", getCpuLoad());
     state->setProperty("sample_rate", currentSampleRate);
     state->setProperty("buffer_size", currentBufferSize);
+    state->setProperty("audio_device_name", deviceManager->getCurrentAudioDeviceType());
+    state->setProperty("project_name", "Untitled");
+    state->setProperty("is_modified", false);
 
-    // Serialize and send
-    juce::String jsonStr = juce::JSON::toString(juce::var(state.get()));
+    // Serialize and send to Rust
+    juce::String jsonStr = juce::JSON::toString(juce::var(state.get()), true);
     rysyn_update_state_json(jsonStr.toRawUTF8());
 #endif
 }

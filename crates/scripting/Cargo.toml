@@ -1,6 +1,19 @@
 [package]
 name = "rysyn_scripting"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+pyo3.workspace = true
+rysyn_ffi_bridge = { path = "../ffi_bridge" }
+rysyn_project = { path = "../project" }
+serde.workspace = true
+serde_json.workspace = true
+log.workspace = true
+
+[features]
+default = []
+python = []

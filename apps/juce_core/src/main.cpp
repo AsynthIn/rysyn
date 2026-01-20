@@ -52,8 +52,8 @@ public:
             audioCore->setBpm(120.0);
             audioCore->play();
 
-            // Run for a few seconds
-            juce::MessageManager::getInstance()->runDispatchLoopUntil(3000);
+            // Run for a few seconds using Timer
+            juce::Time::waitForMillisecondCounter(juce::Time::getMillisecondCounter() + 3000);
 
             audioCore->stop();
             std::cout << "Playback stopped.\n";

@@ -3,6 +3,7 @@
 use eframe::egui;
 use rysyn_ffi_bridge::{init_bridge, get_bridge, Command, StateSnapshot};
 use std::sync::mpsc::{channel, Sender, Receiver};
+use std::path::PathBuf;
 
 use crate::panels::{
     transport::TransportPanel,
@@ -35,6 +36,11 @@ pub struct RysynApp {
     show_browser: bool,
     show_inspector: bool,
     
+    /// File dialog state
+    show_open_dialog: bool,
+    open_dialog_path: PathBuf,
+    show_about_dialog: bool,
+    
     /// Zoom/scroll state
     timeline_zoom: f32,
     timeline_scroll: f64,
@@ -60,6 +66,9 @@ impl RysynApp {
             show_mixer: true,
             show_browser: true,
             show_inspector: false,
+            show_open_dialog: false,
+            open_dialog_path: PathBuf::from(std::env::home_dir().unwrap_or_default()),
+            show_about_dialog: false,
             timeline_zoom: 1.0,
             timeline_scroll: 0.0,
         }
@@ -104,7 +113,7 @@ impl eframe::App for RysynApp {
                         ui.close_menu();
                     }
                     if ui.button("Open Project...").clicked() {
-                        // TODO: File dialog
+                        self.show_open_dialog = true;
                         ui.close_menu();
                     }
                     if ui.button("Save Project").clicked() {
@@ -160,7 +169,7 @@ impl eframe::App for RysynApp {
                 
                 ui.menu_button("Help", |ui| {
                     if ui.button("About Rysyn").clicked() {
-                        // TODO: About dialog
+                        self.show_about_dialog = true;
                         ui.close_menu();
                     }
                 });
@@ -253,5 +262,67 @@ impl eframe::App for RysynApp {
                 });
             });
         });
+
+        // Render Open Dialog
+        if self.show_open_dialog {
+            egui::Window::new("Open Project")
+                .open(&mut self.show_open_dialog)
+                .collapsible(false)
+                .resizable(true)
+                .default_width(500.0)
+                .show(ctx, |ui| {
+                    ui.label("Select a project file to open:");
+                    
+                    ui.horizontal(|ui| {
+                        ui.label("Path:");
+                        let path_str = self.open_dialog_path.to_string_lossy().to_string();
+                        let mut editable = path_str;
+                        ui.text_edit_singleline(&mut editable);
+                    });
+                    
+                    ui.horizontal(|ui| {
+                        if ui.button("Open").clicked() {
+                            if let Some(path_str) = self.open_dialog_path.to_str() {
+                                let _ = self.cmd_tx.send(Command::LoadProject { 
+                                    path: path_str.to_string() 
+                                });
+                            }
+                        }
+                        if ui.button("Cancel").clicked() {
+                        }
+                    });
+                    
+                    ui.separator();
+                    ui.label("Supported formats: .rysyn (YAML project file)");
+                });
+        }
+
+        // Render About Dialog
+        if self.show_about_dialog {
+            egui::Window::new("About Rysyn")
+                .open(&mut self.show_about_dialog)
+                .collapsible(false)
+                .resizable(false)
+                .default_width(400.0)
+                .show(ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.heading("Rysyn");
+                        ui.label("Digital Audio Workstation");
+                        ui.separator();
+                        ui.label("Version: 0.1.0 (MVP)");
+                        ui.label("Copyright © 2026 AsynthIn");
+                        ui.separator();
+                        ui.label("A modern DAW built with:");
+                        ui.label("• JUCE 8.0.4 (C++ Audio Engine)");
+                        ui.label("• egui (Rust UI Framework)");
+                        ui.label("• Symphonia (Audio Codec Support)");
+                        ui.separator();
+                        ui.label("GitHub: github.com/AsynthIn/rysyn");
+                        ui.separator();
+                        if ui.button("Close").clicked() {
+                        }
+                    });
+                });
+        }
     }
 }

@@ -34,27 +34,27 @@ void PluginHost::scanPlugins()
     
     // Standard VST3 locations
 #if JUCE_WINDOWS
-    searchPath.addPath(juce::File::getSpecialLocation(juce::File::globalApplicationsDirectory)
+    searchPath.add(juce::File::getSpecialLocation(juce::File::globalApplicationsDirectory)
         .getChildFile("Common Files/VST3"));
 #elif JUCE_MAC
-    searchPath.addPath(juce::File("/Library/Audio/Plug-Ins/VST3"));
-    searchPath.addPath(juce::File("~/Library/Audio/Plug-Ins/VST3"));
+    searchPath.add(juce::File("/Library/Audio/Plug-Ins/VST3"));
+    searchPath.add(juce::File("~/Library/Audio/Plug-Ins/VST3"));
 #elif JUCE_LINUX
-    searchPath.addPath(juce::File("/usr/lib/vst3"));
-    searchPath.addPath(juce::File("/usr/local/lib/vst3"));
-    searchPath.addPath(juce::File("~/.vst3"));
+    searchPath.add(juce::File("/usr/lib/vst3"));
+    searchPath.add(juce::File("/usr/local/lib/vst3"));
+    searchPath.add(juce::File::getSpecialLocation(juce::File::userHomeDirectory).getChildFile(".vst3"));
 #endif
 
     // Add custom paths
     for (const auto& path : customSearchPaths) {
-        searchPath.addPath(juce::File(path));
+        searchPath.add(juce::File(path));
     }
 
     // Scan for each format
     for (int i = 0; i < formatManager.getNumFormats(); ++i) {
         auto* format = formatManager.getFormat(i);
         
-        juce::PluginDirectoryScanner scanner(
+        juce::PluginDirectoryScanner localScanner(
             knownPlugins,
             *format,
             searchPath,
@@ -63,7 +63,7 @@ void PluginHost::scanPlugins()
         );
 
         juce::String pluginName;
-        while (scanner.scanNextFile(true, pluginName)) {
+        while (localScanner.scanNextFile(true, pluginName)) {
             DBG("Scanned: " << pluginName);
         }
     }
