@@ -38,7 +38,7 @@
 namespace ProjectInfo
 {
     const char* const  projectName    = "Rysyn Audio Core";
-    const char* const  companyName    = "yourcompany";
+    const char* const  companyName    = "asynthin";
     const char* const  versionString  = "0.1.0";
     const int          versionNumber  =  0x100;
 }
